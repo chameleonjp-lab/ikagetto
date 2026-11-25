@@ -8,10 +8,9 @@ import { localizeHtml, t, tHtml } from '../i18n/runtime.js';
 //     by a looping "ghost finger" drawn over the real target instead of a dialog.
 //  3. Never open a card on top of a success / failure message: wait until it fades.
 //  4. One card = one action sentence + at most two short supporting lines.
-//  5. Each card is shown once per device. Everything can be replayed from the home screen.
+//  5. Each card is shown once per guided play. The next play can be guided from Home.
 
-const SEEN_KEY = 'ikagetto_guides_seen_v1';
-const LEGACY_FISHING_KEY = 'architeuthis_fishing_tut_done_v1';
+const GUIDE_KEY = 'ikagetto_guide_preference_v1';
 
 function safeRead(key) {
   try { return window.localStorage ? localStorage.getItem(key) : null; } catch (_) { return null; }
@@ -19,34 +18,45 @@ function safeRead(key) {
 function safeWrite(key, value) {
   try { if (window.localStorage) localStorage.setItem(key, value); } catch (_) {}
 }
-function safeRemove(key) {
-  try { if (window.localStorage) localStorage.removeItem(key); } catch (_) {}
+function loadPreference() {
+  try {
+    const saved = JSON.parse(safeRead(GUIDE_KEY));
+    if (saved && typeof saved.played === 'boolean') {
+      return { played: saved.played, next: typeof saved.next === 'boolean' ? saved.next : null };
+    }
+  } catch (_) {}
+
+  let played = safeRead('architeuthis_fishing_tut_done_v1') === '1';
+  try {
+    const previous = JSON.parse(safeRead('ikagetto_guides_seen_v1'));
+    played ||= Array.isArray(previous) && previous.length > 0;
+  } catch (_) {}
+  return { played, next: null };
 }
 
-// Small persistent "already seen" set. Falls back to memory when storage is blocked.
+let preference = loadPreference();
+let enabled = false;
+const seen = new Set();
+
+// The next-play choice survives a reload. Guide progress lasts for the current play.
 export const GuideStore = {
-  _set: null,
-  _load() {
-    if (this._set) return this._set;
-    let arr = [];
-    try { arr = JSON.parse(safeRead(SEEN_KEY) || '[]'); } catch (_) { arr = []; }
-    this._set = new Set(Array.isArray(arr) ? arr : []);
-    if (safeRead(LEGACY_FISHING_KEY) === '1') this._set.add('fishing:done');
-    return this._set;
+  nextEnabled() { return preference.next ?? !preference.played; },
+  toggleNext() {
+    preference.next = !this.nextEnabled();
+    safeWrite(GUIDE_KEY, JSON.stringify(preference));
+    return preference.next;
   },
-  has(id) { return this._load().has(id); },
-  mark(id) {
-    const s = this._load();
-    if (s.has(id)) return;
-    s.add(id);
-    safeWrite(SEEN_KEY, JSON.stringify([...s]));
+  beginPlay() {
+    enabled = this.nextEnabled();
+    seen.clear();
+    preference = { played: true, next: null };
+    safeWrite(GUIDE_KEY, JSON.stringify(preference));
+    return enabled;
   },
-  anySeen() { return this._load().size > 0; },
-  resetAll() {
-    this._set = new Set();
-    safeRemove(SEEN_KEY);
-    safeRemove(LEGACY_FISHING_KEY);
-  }
+  isEnabled() { return enabled; },
+  skipPlay() { enabled = false; },
+  has(id) { return seen.has(id); },
+  mark(id) { seen.add(id); },
 };
 
 // ---------------------------------------------------------------------------
@@ -160,22 +170,22 @@ export class MiniGameCoach {
     this._buildDOM();
   }
 
-  isFirstPlay() { return !GuideStore.has('all:off') && !GuideStore.has(`${this.prefix}:done`); }
+  isFirstPlay() { return !GuideStore.has(`${this.prefix}:done`); }
   markDone() { GuideStore.mark(`${this.prefix}:done`); }
-  hasSeen(cardId) { return GuideStore.has('all:off') || GuideStore.has(`${this.prefix}:${cardId}`); }
+  hasSeen(cardId) { return GuideStore.has(`${this.prefix}:${cardId}`); }
   isBlocking() { return this.open || this.pendingTimer !== null; }
 
   // Ghost finger rule: on first play show it until the player touches;
   // afterwards (or later plays) bring it back only when the player seems stuck.
   shouldShowGhost(touchedThisStep, idleSec, pointerDown) {
-    if (pointerDown || this.isBlocking()) return false;
+    if (!GuideStore.isEnabled() || pointerDown || this.isBlocking()) return false;
     if (this.isFirstPlay() && !touchedThisStep) return idleSec > 0.6;
     return idleSec > 3.5;
   }
 
   // Returns true when a card was scheduled (game should hold input / timers).
   request(card, delaySec = 0) {
-    if (!card || this.hasSeen(card.id)) return false;
+    if (!GuideStore.isEnabled() || !card || this.hasSeen(card.id)) return false;
     this.cancel();
     this.pendingTimer = setTimeout(() => {
       this.pendingTimer = null;

@@ -121,10 +121,18 @@ export class HUDManager {
         touch-action: pan-y;
         z-index: 45;
       }
+      .home-options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+        gap: 8px;
+      }
       .home-language {
         justify-self: start;
         display: flex;
         align-items: center;
+        min-width: 0;
+        max-width: 100%;
         gap: 8px;
         padding: 0 10px;
         border: 1px solid rgba(92, 225, 255, 0.38);
@@ -134,11 +142,13 @@ export class HUDManager {
         font-size: 13px;
         font-weight: 700;
       }
+      .home-language span { overflow-wrap: anywhere; }
       .home-language select {
         color-scheme: dark;
         color: inherit;
         background: #091a30;
         min-height: 44px;
+        min-width: 0;
         max-width: min(50vw, 180px);
         border: 0;
         font: inherit;
@@ -237,11 +247,48 @@ export class HUDManager {
       }
       .home-play-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(34, 184, 226, 0.58); }
       .home-play-btn:active { transform: scale(0.98); }
-      .home-guide-link {
-        min-height: 36px; margin-top: 4px; background: transparent; border: none; color: #b8e5ff;
-        font-size: 12px; font-weight: 700; text-decoration: underline; cursor: pointer; font-family: inherit;
+      .home-guide-toggle {
+        display: flex;
+        justify-self: end;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 44px;
+        padding: 7px 10px;
+        border: 1px solid rgba(92, 225, 255, 0.35);
+        border-radius: 9px;
+        background: #0c2038;
+        color: #e8f8ff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 750;
+        text-align: start;
+        overflow-wrap: anywhere;
+        cursor: pointer;
       }
-      .home-guide-link.hidden { display: none; }
+      .home-guide-toggle:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+      .home-guide-state { display: flex; align-items: center; gap: 7px; color: #c1dbed; }
+      .home-guide-track {
+        width: 36px;
+        height: 21px;
+        padding: 3px;
+        flex: none;
+        border-radius: 11px;
+        background: #3c5269;
+      }
+      .home-guide-track::before {
+        content: '';
+        display: block;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #f4faff;
+      }
+      .home-guide-toggle[aria-checked='true'] .home-guide-track { background: #26c4e5; }
+      .home-guide-toggle[aria-checked='true'] .home-guide-track::before {
+        transform: translateX(15px);
+        background: #06243b;
+      }
       @media (min-width: 600px) and (max-height: 540px) {
         #home-screen { gap: 8px; }
         .home-card {
@@ -252,7 +299,6 @@ export class HUDManager {
         .home-steps { margin-bottom: 0; }
         .home-step { padding-block: 7px; }
         .home-step-icon { width: 28px; height: 28px; }
-        .home-guide-link { grid-column: 1 / -1; justify-self: center; }
       }
 
       /* Top Stack: Toolbar + Guide + Hookup/Fight Instruments */
@@ -809,10 +855,16 @@ export class HUDManager {
     this.layer.innerHTML = localizeHtml(`
       <!-- HOME SCREEN -->
       <div id="home-screen">
-        <label class="home-language" for="home-language">
-          <span id="home-language-label"></span>
-          <select id="home-language"></select>
-        </label>
+        <div class="home-options">
+          <label class="home-language" for="home-language">
+            <span id="home-language-label"></span>
+            <select id="home-language"></select>
+          </label>
+          <button type="button" id="btn-home-guide" class="home-guide-toggle" role="switch" aria-checked="false" aria-labelledby="home-guide-label">
+            <span id="home-guide-label">操作ガイド</span>
+            <span class="home-guide-state" aria-hidden="true"><span id="home-guide-state"></span><span class="home-guide-track"></span></span>
+          </button>
+        </div>
         <div class="home-card">
           <div>
             <h1 class="home-title">イカゲット</h1>
@@ -866,7 +918,6 @@ export class HUDManager {
               <a id="home-ranking-link" class="home-secondary" href="./ranking.html"></a>
             </div>
           </form>
-          <button type="button" id="btn-home-guide" class="home-guide-link hidden">はじめてガイドを、もう一度見る</button>
         </div>
       </div>
 
@@ -1026,6 +1077,7 @@ export class HUDManager {
     this.elPlayerName = document.getElementById('home-player-name');
     this.elNameError = document.getElementById('home-name-error');
     this.elBtnHomeGuide = document.getElementById('btn-home-guide');
+    this.elHomeGuideState = document.getElementById('home-guide-state');
     this._populateHome();
     this.elTopWrap = document.getElementById('hud-top-wrap');
     this.elShipKeypad = document.getElementById('ship-keypad');
@@ -1151,10 +1203,9 @@ export class HUDManager {
     return valid;
   }
 
-  setGuideReplayVisible(visible) {
-    this.elBtnHomeGuide.classList.toggle('hidden', !visible);
-    this.elBtnHomeGuide.disabled = false;
-    this.elBtnHomeGuide.textContent = t('はじめてガイドを、もう一度見る');
+  setGuideEnabled(enabled) {
+    this.elBtnHomeGuide.setAttribute('aria-checked', String(enabled));
+    this.elHomeGuideState.textContent = t(enabled ? 'オン' : 'オフ');
   }
 
   _applyPanelVisibility() {
@@ -1200,12 +1251,7 @@ export class HUDManager {
       if (this.callbacks.onStartGame) this.callbacks.onStartGame();
     });
 
-    // Replay first-play guides
-    this.elBtnHomeGuide.addEventListener('click', () => {
-      if (this.callbacks.onResetGuides) this.callbacks.onResetGuides();
-      this.elBtnHomeGuide.textContent = t('次のプレイから、ガイドをもう一度表示します');
-      this.elBtnHomeGuide.disabled = true;
-    });
+    this.elBtnHomeGuide.addEventListener('click', () => this.callbacks.onToggleGuides?.());
 
     // Inspection buttons
     this.elBtnShowResult.addEventListener('click', () => {

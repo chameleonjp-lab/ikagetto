@@ -251,6 +251,8 @@ function startFishing() {
   fishingPlayerName = getPlayerName();
   fishingRun = startRankingRun('fishing', fishingPlayerName);
   fishingRanking = null;
+  tutorial.beginPlay(GuideStore.beginPlay());
+  hud.setGuideEnabled(GuideStore.nextEnabled());
   hud.hideAll();
   const snapshot = engine.startGame();
   applySquidTierVisuals(squid, snapshot.specimen);
@@ -277,7 +279,6 @@ const flowMenus = new FlowMenuManager(appContainer, {
     ajilloGame.start(fishingPlayerName);
   },
   onReplayFishing: () => {
-    tutorial.closeAll();
     butcherGame.hide();
     ajilloGame.hide();
     flowMenus.hideFishingResult();
@@ -337,10 +338,7 @@ const hud = new HUDManager(appContainer, {
     if (engine.phase === 'FIGHT') userSwappedInFight = !userSwappedInFight;
     else manualSwapToggle = !manualSwapToggle;
   },
-  onResetGuides: () => {
-    GuideStore.resetAll();
-    tutorial.resetForReplay();
-  },
+  onToggleGuides: () => hud.setGuideEnabled(GuideStore.toggleNext()),
   onToggleMute: () => {
     audio.initOnGesture();
     const m = audio.toggleMute();
@@ -354,7 +352,7 @@ const hud = new HUDManager(appContainer, {
 installAudioUnlock();
 window.addEventListener('pointerdown', () => audio.initOnGesture(), { capture: true });
 onAudioContextCreated((ctx) => { if (audio.started) audio._build(ctx); });
-hud.setGuideReplayVisible(GuideStore.anySeen());
+hud.setGuideEnabled(GuideStore.nextEnabled());
 
 // =============================================================================
 // 4. PRE-ALLOCATED SCRATCH VECTORS & MAIN LOOP
@@ -429,9 +427,6 @@ function animate(now) {
   const simDt = tutorial.isPaused() ? 0 : dt;
   const snap = engine.update(simDt, controls, wave);
   recordFishingResult(snap.result);
-
-  // Offer "show the first-play guide again" on the home screen once any guide was seen.
-  if (snap.phase === 'HOME' && prevPhase !== 'HOME') hud.setGuideReplayVisible(GuideStore.anySeen());
 
   if (snap.phase === 'CAPTURE_SCENE' && prevPhase !== 'CAPTURE_SCENE') {
     audio.playCaptureFanfare();

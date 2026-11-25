@@ -3,7 +3,7 @@ import { GuideStore } from './MiniGameCoach.js';
 
 // First-Time Play Contextual Spotlight Tutorial for Deep-Sea Giant Squid Fishing
 // Dims everything outside the target UI element using a true spotlight cutout,
-// pauses gameplay while the player reads, and saves completion state (replayable).
+// pauses gameplay while the player reads. Home controls which play shows it.
 //
 // Timing rules: a card never appears the instant a phase starts. It waits until the
 // phase's own big callout ("HOOKED!!" etc.) has been seen, so the dramatic moment is
@@ -12,7 +12,7 @@ import { GuideStore } from './MiniGameCoach.js';
 export class FishingTutorial {
   constructor(rootContainer) {
     this.root = rootContainer;
-    this.enabled = !GuideStore.has('fishing:done');
+    this.enabled = false;
 
     this.shownSteps = new Set();
     this._armedAt = new Map();
@@ -147,7 +147,7 @@ export class FishingTutorial {
     this.elSkip.addEventListener('click', (e) => {
       e.stopPropagation();
       // "Don't show guides again" also silences the butcher / cooking tips.
-      GuideStore.mark('all:off');
+      GuideStore.skipPlay();
       this.markCompleted();
       this.closeAll();
     });
@@ -162,15 +162,13 @@ export class FishingTutorial {
 
   markCompleted() {
     this.enabled = false;
-    GuideStore.mark('fishing:done');
   }
 
-  resetForReplay() {
-    this.enabled = true;
+  beginPlay(showGuides) {
+    this.closeAll();
+    this.enabled = showGuides;
     this.shownSteps.clear();
     this._armedAt.clear();
-    this.queue = [];
-    this.currentStep = null;
   }
 
   // True once `cond` has held continuously for `delaySec`.
