@@ -1,8 +1,10 @@
 import { ResultFXManager } from './ResultFX.js';
-// Manages Zero-Scroll Screenshot-Ready Fishing Result Overlay, Post-Fishing Menu, Post-Butcher Menu & URL-free X Share
+// Manages fishing results, the menus between stages, and sharing to X.
 
 export function shareToX(text) {
-  const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  const pageUrl = document.querySelector('link[rel="canonical"]').href;
+  const params = new URLSearchParams({ text, url: pageUrl });
+  const intentUrl = `https://twitter.com/intent/tweet?${params}`;
   window.open(intentUrl, '_blank', 'noopener,noreferrer');
 }
 
