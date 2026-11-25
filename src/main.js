@@ -251,8 +251,16 @@ function startFishing() {
   fishingPlayerName = getPlayerName();
   fishingRun = startRankingRun('fishing', fishingPlayerName);
   fishingRanking = null;
+  hud.hideAll();
   const snapshot = engine.startGame();
   applySquidTierVisuals(squid, snapshot.specimen);
+}
+
+function recordFishingResult(result) {
+  if (result?.success && fishingRun && !fishingRanking) {
+    fishingRanking = finishRankingRun(fishingRun, result.score);
+  }
+  return fishingRanking;
 }
 
 const flowMenus = new FlowMenuManager(appContainer, {
@@ -313,12 +321,13 @@ const hud = new HUDManager(appContainer, {
     if (engine.phase === 'HOME') startFishing();
   },
   onOpenResult: () => {
+    if (engine.phase !== 'INSPECT') return;
     engine.openResultScreen();
     const s = engine.getSnapshot();
     activeAppMode = 'FISHING_RESULT';
     hud.hideAll();
     fishingResultScene.configure(s.specimen);
-    flowMenus.showFishingResult(s.result, fishingRanking, fishingPlayerName);
+    flowMenus.showFishingResult(s.result, recordFishingResult(s.result), fishingPlayerName);
   },
   onRetry: () => {
     if (engine.phase === 'GAMEOVER' || engine.phase === 'INSPECT') startFishing();
@@ -419,9 +428,7 @@ function animate(now) {
   const wave = oceanEnv.getWaveStateAt(engine.ship.x, engine.ship.z, totalTime);
   const simDt = tutorial.isPaused() ? 0 : dt;
   const snap = engine.update(simDt, controls, wave);
-  if (snap.result?.success && fishingRun && !fishingRanking) {
-    fishingRanking = finishRankingRun(fishingRun, snap.result.score);
-  }
+  recordFishingResult(snap.result);
 
   // Offer "show the first-play guide again" on the home screen once any guide was seen.
   if (snap.phase === 'HOME' && prevPhase !== 'HOME') hud.setGuideReplayVisible(GuideStore.anySeen());
