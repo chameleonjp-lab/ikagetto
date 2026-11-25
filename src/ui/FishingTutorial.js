@@ -115,7 +115,7 @@ export class FishingTutorial {
       <div id="tut-spotlight"></div>
       <div id="tut-card">
         <div class="tut-badge-row">
-          <span class="tut-step-tag" id="tut-tag">はじめてガイド 1 / 6</span>
+          <span class="tut-step-tag" id="tut-tag">はじめてガイド</span>
           <button type="button" class="tut-skip-btn" id="tut-skip">今後ガイドを出さない</button>
         </div>
         <div class="tut-title" id="tut-title">--</div>
@@ -233,7 +233,9 @@ export class FishingTutorial {
     const vh = window.innerHeight;
     const vw = window.innerWidth;
 
-    if (targetEl && targetEl.offsetParent !== null) {
+    // NOTE: offsetParent is always null for position:fixed panels (sonar, stick,
+    // crane), so check the real on-screen box and computed visibility instead.
+    if (targetEl && targetEl.getClientRects().length > 0 && getComputedStyle(targetEl).visibility !== 'hidden') {
       const r = targetEl.getBoundingClientRect();
       if (r.width > 10 && r.height > 10) {
         const pad = 6;
@@ -283,14 +285,14 @@ export class FishingTutorial {
       this._enqueue([
         {
           id: 'search_sonar',
-          tag: 'はじめてガイド 1 / 6',
+          tag: 'はじめてガイド',
           selector: '#hud-sonar-panel',
           title: 'ソナーで、イカのいる場所をさがす',
           html: '大きな数字はイカまでの距離、矢印は船を進める向きです。<b>22m以内</b>に近づくと、グラフが緑になります。'
         },
         {
           id: 'search_steer',
-          tag: 'はじめてガイド 2 / 6',
+          tag: 'はじめてガイド',
           selector: '#ship-keypad',
           title: '丸いスティックで、船を動かす',
           html: '指を置いてすべらせると、その向きに船が進みます。ソナーの数字が<b>22m以下</b>になるまで近づこう。',
@@ -305,7 +307,7 @@ export class FishingTutorial {
       this._enqueue([
         {
           id: 'search_drop',
-          tag: 'はじめてガイド 3 / 6',
+          tag: 'はじめてガイド',
           selector: '#btn-reel-out',
           title: '「↓ 繰出/投下」を長押しする',
           html: '仕掛けが深海へ降りていきます。水深が<b>600m</b>に届くと、イカが近づいてきます。',
@@ -320,7 +322,7 @@ export class FishingTutorial {
       this._enqueue([
         {
           id: 'lure_hook',
-          tag: 'はじめてガイド 4 / 6',
+          tag: 'はじめてガイド',
           selector: '#btn-hook',
           title: 'まだ押さずに、イカを待つ',
           html: '腕で餌をさわっている間に押すと、イカが逃げます。<b>「HOOK UP!!」</b>の文字が出たら、赤く光る<b>「フッキング」</b>をすぐ押そう。数秒で消えます。',
@@ -335,7 +337,7 @@ export class FishingTutorial {
       this._enqueue([
         {
           id: 'fight_gauges',
-          tag: 'はじめてガイド 5 / 6',
+          tag: 'はじめてガイド',
           selector: '#top-gauges',
           title: '「↑ 巻上」を長押しして引き上げる',
           html: `水深0mまで巻き上げれば成功です。上の計器を見ながら巻こう。
@@ -355,7 +357,7 @@ export class FishingTutorial {
       this._enqueue([
         {
           id: 'landing_crane',
-          tag: 'はじめてガイド 6 / 6',
+          tag: 'はじめてガイド',
           selector: '#crane-timing-panel',
           title: '3つが緑になったら、クレーンを押す',
           html: '「ロール」「イカ静止」「波頂点」の3つが緑になると、オレンジのボタンが光ります。その瞬間に押す操作を<b>3回</b>成功させると捕獲です。',
