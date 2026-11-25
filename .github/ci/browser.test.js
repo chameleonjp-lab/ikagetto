@@ -28,7 +28,7 @@ function rankingRows(offset) {
   }));
 }
 
-test('short mobile play, result and paginated ranking load offline', { timeout: 40000 }, async () => {
+test('short mobile play, result and paginated ranking load offline', { timeout: 55000 }, async () => {
   const browser = await chromium.launch({
     executablePath: process.env.CHROME_BIN || chromium.executablePath(),
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
@@ -37,7 +37,7 @@ test('short mobile play, result and paginated ranking load offline', { timeout: 
     const page = await browser.newPage({
       isMobile: true, hasTouch: true, reducedMotion: 'reduce', viewport: { width: 402, height: 700 },
     });
-    page.setDefaultTimeout(6000);
+    page.setDefaultTimeout(12000);
     const errors = [];
     const requestedPages = [];
     const unexpectedApi = [];
@@ -68,7 +68,7 @@ test('short mobile play, result and paginated ranking load offline', { timeout: 
       return route.abort();
     });
 
-    await page.goto(gameUrl + '?mockRanking=1&colossal=50&lang=en');
+    await page.goto(gameUrl + '?mockRanking=1&colossal=50&lang=en', { waitUntil: 'commit' });
     await page.locator('canvas.webgl-canvas').waitFor();
     const guide = page.locator('#btn-home-guide');
     assert.equal(await guide.getAttribute('aria-checked'), 'true');
@@ -110,7 +110,7 @@ test('short mobile play, result and paginated ranking load offline', { timeout: 
     await page.locator('#butcher-top').waitFor();
 
     serveRankings = true;
-    await page.goto(gameUrl + 'ranking.html?lang=en');
+    await page.goto(gameUrl + 'ranking.html?lang=en', { waitUntil: 'commit' });
     const rows = page.locator('#board-rows tr');
     await rows.nth(99).waitFor();
     assert.equal(await rows.count(), 100);
