@@ -718,7 +718,7 @@ export class HUDManager {
       <div id="home-screen">
         <div class="home-card">
           <div class="home-kicker">DEEP SEA FISHING SIMULATOR</div>
-          <div class="home-title">ダイオウイカ深海釣り</div>
+          <div class="home-title">イカゲット</div>
           <div class="home-latin">Architeuthis dux — Depth 800m</div>
           <div class="home-steps">
             <div class="home-step"><strong>① 索敵・投下</strong>360°スティックで反応地点へ近づき仕掛けを投下</div>
