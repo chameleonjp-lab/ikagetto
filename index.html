@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- maximum-scale / user-scalable stop zoom on Android; iOS ignores them, so TouchGuard.js uses touch-action instead. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>イカゲット</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }

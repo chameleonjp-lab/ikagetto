@@ -19,9 +19,12 @@ import { FishingTutorial } from './ui/FishingTutorial.js';
 import { GuideStore } from './ui/MiniGameCoach.js';
 import { installJapaneseLineBreak } from './ui/JaLineBreak.js';
 import { installDeviceProfile } from './ui/DeviceProfile.js';
+import { installTouchGuard, setBackGuard } from './ui/TouchGuard.js';
 
 // Tag <html> with the device type (phone / tablet / PC / dual screen) and input (touch / mouse).
 installDeviceProfile();
+// Stop selection, long-press menus, zoom, edge swipes and "back" from interrupting play.
+installTouchGuard();
 // Break Japanese text only between phrases everywhere in the game
 // (and swap finger words for mouse words on PC).
 installJapaneseLineBreak();
@@ -396,6 +399,9 @@ function animate(now) {
   const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) * 0.001));
   lastTime = now;
   totalTime += dt;
+
+  // While playing (anything but the home screen), "back" keeps the player in the game.
+  setBackGuard(activeAppMode !== 'FISHING' || engine.phase !== 'HOME');
 
   // Dispatch active secondary 3D stage (Comparison Result / Butcher Game / Ajillo Cooking Game)
   if (activeAppMode === 'FISHING_RESULT') {
