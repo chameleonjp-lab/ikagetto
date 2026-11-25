@@ -8,6 +8,7 @@ import { getCommentForScore } from '../data/SquidTiersAndComments.js';
 import { MiniGameCoach, drawGhostSwipe, drawGhostTap, drawGhostCircle } from '../ui/MiniGameCoach.js';
 import { adaptText } from '../ui/DeviceProfile.js';
 import { SlashFX, drawOutlinedText, labelPx } from '../ui/SlashFX.js';
+import { judgeLine, circleDeviation, scoreRatio, JUDGE_MESSAGES } from './SwipeJudge.js';
 
 // Each step specifies exact 3D camera focus (fx, fz) AND exact 3D world start/end points
 // so the on-screen glowing chevron guide aligns 1:1 with the anatomical part being cut!
@@ -254,8 +255,14 @@ export class ButcherGame {
       this.dragStart = { x: pt.x, y: pt.y, t: performance.now() };
       this.dragCurrent = pt;
       this.trail = [pt];
+      this.stroke = [pt];
       this.circleSweep = 0;
-      this.lastAngle = Math.atan2(pt.y - 0.52, pt.x - 0.5);
+      const stepNow = BUTCHER_STEPS_15[this.stepIdx];
+      // Count the turn around the circle that is actually drawn on screen.
+      this.circleCenter = stepNow.type === 'circle'
+        ? this._projectToScreen(stepNow.p0, this.canvasW, this.canvasH, this._projA)
+        : { x: this.canvasW * 0.5, y: this.canvasH * 0.52 };
+      this.lastAngle = Math.atan2(pt.y * this.canvasH - this.circleCenter.y, pt.x * this.canvasW - this.circleCenter.x);
 
       const step = BUTCHER_STEPS_15[this.stepIdx];
       if (step.type === 'timing') {
@@ -279,17 +286,25 @@ export class ButcherGame {
       this.toolWorldX = step.fx + (pt.x - 0.5) * 3.6;
       this.toolWorldZ = step.fz + (pt.y - 0.5) * 3.2;
 
+      this.dragCurrent = pt;
+      this.trail.push(pt);
+      if (this.trail.length > 14) this.trail.shift();
+      this.stroke.push(pt);
+
       if (step.type === 'circle') {
-        const a = Math.atan2(pt.y - 0.52, pt.x - 0.5);
+        const a = Math.atan2(pt.y * this.canvasH - this.circleCenter.y, pt.x * this.canvasW - this.circleCenter.x);
         let da = a - this.lastAngle;
         while (da > Math.PI) da -= Math.PI * 2;
         while (da < -Math.PI) da += Math.PI * 2;
         this.circleSweep += Math.abs(da);
         this.lastAngle = a;
+        // One full turn is enough: judge right away so the player never keeps circling.
+        if (this.circleSweep >= Math.PI * 2) {
+          this.pointerDown = false;
+          this._evaluateGesture();
+          this.trail = [];
+        }
       }
-      this.dragCurrent = pt;
-      this.trail.push(pt);
-      if (this.trail.length > 14) this.trail.shift();
     });
 
     const onUp = () => {
@@ -310,6 +325,25 @@ export class ButcherGame {
     else if (se === 'pen') this.audio.playPenPull();
     else if (se === 'pop') this.audio.playPop();
     else if (se === 'peel') this.audio.playPeel();
+  }
+
+  _strokePx() {
+    return (this.stroke || []).map((p) => ({ x: p.x * this.canvasW, y: p.y * this.canvasH }));
+  }
+
+  // Compare the stroke with the guide line of this step.
+  _judgeStroke(step, directional = true) {
+    const a = this._projectToScreen(step.p0, this.canvasW, this.canvasH, this._projA);
+    const b = this._projectToScreen(step.p1, this.canvasW, this.canvasH, this._projB);
+    return judgeLine(this._strokePx(), { x: a.x, y: a.y }, { x: b.x, y: b.y }, { directional });
+  }
+
+  // Short "try again" message without ending the step (for steps that need several cuts).
+  _showMiss(msg) {
+    this.audio?.playStepNG();
+    this.elFeedback.textContent = t(msg);
+    this.elFeedback.className = 'mg-feedback show ng';
+    this.feedbackTimer = 1.0;
   }
 
   // Flash along the player's own stroke (successful cut).
@@ -340,7 +374,10 @@ export class ButcherGame {
         else this._refreshRuleChip();
       }
     } else if (step.type === 'multi_swipe_v') {
-      if (Math.abs(dy) > 0.13) {
+      const line = this._judgeStroke(step, false);
+      if (!line.ok) {
+        if (Math.hypot(dx, dy) > 0.04) this._showMiss(JUDGE_MESSAGES[line.reason]);
+      } else {
         this._playStepSE(step.se);
         this.models.knifeSwing = 1.0;
         this.models.burstParticles(step.fx, step.fz, 0xffe8e4, 20);
@@ -349,39 +386,40 @@ export class ButcherGame {
         if (this.subCount >= step.count) this._finishStep(true, Math.round(step.maxScore * 0.95), 'リズミカルに綺麗に切断！');
         else this._refreshRuleChip();
       }
-    } else if (step.type === 'swipe_v') {
-      const ok = Math.abs(dy) > 0.15;
+    } else if (step.type === 'swipe_v' || step.type === 'swipe_r') {
+      // A tiny accidental touch is ignored instead of failing the step.
+      if (Math.hypot(dx, dy) < 0.04) return;
+      const line = this._judgeStroke(step);
+      const ok = line.ok;
       this._playStepSE(step.se);
       if (ok) this._slashStroke();
-      this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.95 : 0.25)), ok ? 'スパッと綺麗に決まった！' : '切り込みが浅かった…');
-    } else if (step.type === 'swipe_r') {
-      const ok = dx > 0.15;
+      const good = step.type === 'swipe_v' ? 'スパッと綺麗に決まった！' : '一閃！美しい切断面！';
+      this._finishStep(ok, Math.round(step.maxScore * (ok ? scoreRatio(line.accuracy) : 0.25)), ok ? good : JUDGE_MESSAGES[line.reason]);
+    } else if (step.type === 'slow_swipe_l' || step.type === 'slow_swipe_r' || step.type === 'fast_swipe_u') {
+      if (Math.hypot(dx, dy) < 0.04) return;
+      const line = this._judgeStroke(step);
+      let ok = line.ok;
+      let msg = ok ? null : JUDGE_MESSAGES[line.reason];
+      if (ok && step.type === 'slow_swipe_l' && dtSec < 0.40) { ok = false; msg = '速すぎて途中で折れた！'; }
+      if (ok && step.type === 'slow_swipe_r' && dtSec < 0.36) { ok = false; msg = '肝臓が潰れてしまった…'; }
+      if (ok && step.type === 'fast_swipe_u' && dtSec >= 0.85) { ok = false; msg = '皮が千切れて残った…'; }
+      if (ok) msg = step.type === 'slow_swipe_l' ? '軟甲が1本丸ごと抜けた！' : (step.type === 'slow_swipe_r' ? '肝臓を無傷で分離！' : 'つるりと綺麗な白身に！');
       this._playStepSE(step.se);
       if (ok) this._slashStroke();
-      this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.95 : 0.25)), ok ? '一閃！美しい切断面！' : '長さが足りなかった…');
-    } else if (step.type === 'slow_swipe_l') {
-      const ok = dx < -0.15 && dtSec >= 0.40;
-      this._playStepSE(step.se);
-      if (ok) this._slashStroke();
-      this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.96 : 0.22)), ok ? '軟甲が1本丸ごと抜けた！' : '速すぎて途中で折れた！');
-    } else if (step.type === 'slow_swipe_r') {
-      const ok = dx > 0.14 && dtSec >= 0.36;
-      this._playStepSE(step.se);
-      if (ok) this._slashStroke();
-      this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.95 : 0.24)), ok ? '肝臓を無傷で分離！' : '肝臓が潰れてしまった…');
-    } else if (step.type === 'fast_swipe_u') {
-      const ok = dy < -0.14 && dtSec < 0.85;
-      this._playStepSE(step.se);
-      if (ok) this._slashStroke();
-      this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.96 : 0.24)), ok ? 'つるりと綺麗な白身に！' : '皮が千切れて残った…');
+      this._finishStep(ok, Math.round(step.maxScore * (ok ? scoreRatio(line.accuracy) : 0.22)), msg);
     } else if (step.type === 'circle') {
-      const ok = this.circleSweep >= Math.PI * 1.1;
+      if (this.circleSweep < 0.6) return; // just a touch, not an attempt
+      const rad = Math.min(this.canvasW, this.canvasH) * 0.16;
+      const dev = circleDeviation(this._strokePx(), this.circleCenter, rad);
+      const full = this.circleSweep >= Math.PI * 1.9;
+      const ok = full && dev <= 0.45;
       this._playStepSE(step.se);
       if (ok) {
         const c = this._projectToScreen(step.p0, this.canvasW, this.canvasH, this._projA);
         this.fx.addRing(c.x, c.y, Math.min(this.canvasW, this.canvasH) * 0.16);
       }
-      this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.95 : 0.24)), ok ? '巨大眼球を綺麗に摘出！' : '目玉に傷がついた…');
+      const msg = ok ? '巨大眼球を綺麗に摘出！' : (!full ? JUDGE_MESSAGES.circleShort : JUDGE_MESSAGES.circleOff);
+      this._finishStep(ok, Math.round(step.maxScore * (ok ? scoreRatio(1 - dev) : 0.24)), msg);
     }
   }
 

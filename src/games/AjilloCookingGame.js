@@ -7,7 +7,8 @@ import { CookingStageModels } from '../models/CookingModels.js';
 import { getCommentForScore } from '../data/SquidTiersAndComments.js';
 import { MiniGameCoach, GuideStore, drawGhostSwipe, drawGhostTap, drawGhostHold, drawGhostShuttle, drawGhostCircle } from '../ui/MiniGameCoach.js';
 import { adaptText } from '../ui/DeviceProfile.js';
-import { SlashFX, drawOutlinedText, labelPx, setGameFont } from '../ui/SlashFX.js';
+import { SlashFX, drawOutlinedText, labelPx, setGameFont, haptic } from '../ui/SlashFX.js';
+import { judgeLine, circleDeviation, JUDGE_MESSAGES } from './SwipeJudge.js';
 
 const COOK_STEPS_10 = [
   { id: 'score_arm', title: 'イカ足の隠し包丁',             hint: 'イカ足を、ななめに2回なぞる',            rule: 'count', type: 'multi_cut',   count: 2, coach: 'intro', maxScore: 4500 },
@@ -21,6 +22,10 @@ const COOK_STEPS_10 = [
   { id: 'mills',     title: '塩と黒こしょうをひく',         hint: '円にそって3〜4周回し、緑ではなす',      rule: 'はなさない', ruleWarn: true, type: 'mill_circle', coach: 'mill', maxScore: 5200 },
   { id: 'parsley',   title: 'パセリで仕上げ',               hint: 'スキレットを3回タップしてパセリを散らす', rule: 'count', type: 'multi_tap',   count: 3, maxScore: 4800 }
 ];
+
+// Salt & pepper mill: the target shown on screen is 3.0-4.0 turns.
+const MILL_MIN = 3.0;
+const MILL_MAX = 4.0;
 
 // Pause cards only for rules that a first-time player cannot guess from the screen.
 const COOK_COACH_CARDS = {
@@ -183,6 +188,7 @@ export class AjilloCookingGame {
       this.dragStart = pt;
       this.dragCurrent = pt;
       this.trail = [pt];
+      this.stroke = [pt];
       this.heatFingerX = pt.x;
       this.lastAngle = Math.atan2(pt.y - 0.50, pt.x - 0.50);
 
@@ -211,6 +217,7 @@ export class AjilloCookingGame {
       const pt = toNorm(e);
       this.trail.push(pt);
       if (this.trail.length > 26) this.trail.shift();
+      this.stroke.push(pt);
 
       const step = COOK_STEPS_10[this.stepIdx];
       if (step.type === 'multi_cut' || step.type === 'slice_arm') {
@@ -234,6 +241,20 @@ export class AjilloCookingGame {
         while (da < -Math.PI) da += Math.PI * 2;
         this.millSweep += Math.abs(da);
         this.lastAngle = a;
+        const turns = this.millSweep / (Math.PI * 2);
+        // Tell the player the moment the target is reached (sound + vibration), once.
+        if (turns >= MILL_MIN && !this.millCued) {
+          this.millCued = true;
+          this.audio?.playStepOK();
+          haptic(30);
+        }
+        // Past the target: stop right away instead of letting the player spin on and on.
+        if (turns > MILL_MAX) {
+          this.pointerDown = false;
+          this.trail = [];
+          this._finishStep(false, Math.round(step.maxScore * 0.22), '回しすぎて塩の雪山に！');
+          return;
+        }
         if (Math.abs(da) > 0.06) {
           this.models.millGrinding = 1.0;
           if (this.seCooldown <= 0) {
@@ -255,7 +276,13 @@ export class AjilloCookingGame {
       this.trail = [];
 
       if (step.type === 'multi_cut' || step.type === 'slice_arm') {
-        if (Math.hypot(dx, dy) > 0.10) {
+        const line = Math.hypot(dx, dy) > 0.04 ? this._judgeCut(step) : null;
+        if (line && !line.ok) {
+          this.audio?.playStepNG();
+          this.elFeedback.textContent = t(JUDGE_MESSAGES[line.reason]);
+          this.elFeedback.className = 'mg-feedback show ng';
+          this.feedbackTimer = 1.0;
+        } else if (line && line.ok) {
           this.audio?.playChop();
           const cw = this.guideCanvas.width, ch = this.guideCanvas.height;
           this.fx.addSlash(this.dragStart.x * cw, this.dragStart.y * ch, this.dragCurrent.x * cw, this.dragCurrent.y * ch);
@@ -292,8 +319,11 @@ export class AjilloCookingGame {
       } else if (step.type === 'mill_circle') {
         const turns = this.millSweep / (Math.PI * 2);
         if (turns > 0.3) {
-          const ok = turns >= 2.6 && turns <= 4.8;
-          const msg = ok ? '塩＆黒胡椒 絶妙な挽き加減！' : (turns < 2.6 ? '回し足りず薄味に…' : '回しすぎて塩の雪山に！');
+          const w = this.guideCanvas.width, h = this.guideCanvas.height;
+          const dev = circleDeviation(this.stroke.map((p) => ({ x: p.x * w, y: p.y * h })), { x: w * 0.5, y: h * 0.5 }, Math.min(w, h) * 0.18);
+          const ok = turns >= MILL_MIN && turns <= MILL_MAX && dev <= 0.55;
+          const msg = ok ? '塩＆黒胡椒 絶妙な挽き加減！'
+            : (turns < MILL_MIN ? '回し足りず薄味に…' : (turns > MILL_MAX ? '回しすぎて塩の雪山に！' : JUDGE_MESSAGES.circleOff));
           this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.96 : 0.22)), msg);
         }
       }
@@ -332,7 +362,9 @@ export class AjilloCookingGame {
     this.heatGustTimer = 0;
     this.tossProgress = 0;
     this.millSweep = 0;
+    this.millCued = false;
     this.trail = [];
+    this.stroke = [];
 
     this.touchedThisStep = false;
     this.stepIdle = 0;
@@ -415,6 +447,29 @@ export class AjilloCookingGame {
   _project3D(x, y, z, w, h) {
     this._projVec.set(x, y, z).project(this.camera);
     return { x: (this._projVec.x * 0.5 + 0.5) * w, y: (-this._projVec.y * 0.5 + 0.5) * h };
+  }
+
+  // The guide line of the current cut (same points the chevron track is drawn with).
+  _cutLine(step, w, h) {
+    if (step.id === 'score_arm') {
+      const first = this.subCount === 0;
+      return {
+        a: this._project3D(first ? -1.2 : 1.2, 0.65, -0.35, w, h),
+        b: this._project3D(first ? 1.2 : -1.2, 0.65, 0.75, w, h),
+        directional: true
+      };
+    }
+    const x = step.type === 'slice_arm' ? -0.90 + this.subCount * 0.45 : (this.subCount === 0 ? -1.05 : (this.subCount === 1 ? 0.0 : 1.05));
+    const y = step.type === 'slice_arm' ? 0.65 : 0.55;
+    const z0 = step.type === 'slice_arm' ? -0.65 : -0.55;
+    // Straight down-cuts: either direction is fine, but the stroke must follow the line.
+    return { a: this._project3D(x, y, z0, w, h), b: this._project3D(x, y, 0.95, w, h), directional: false };
+  }
+
+  _judgeCut(step) {
+    const w = this.guideCanvas.width, h = this.guideCanvas.height;
+    const { a, b, directional } = this._cutLine(step, w, h);
+    return judgeLine(this.stroke.map((p) => ({ x: p.x * w, y: p.y * h })), { x: a.x, y: a.y }, { x: b.x, y: b.y }, { directional });
   }
 
   _drawChevronTrack(ctx, x1, y1, x2, y2, label) {
@@ -561,14 +616,28 @@ export class AjilloCookingGame {
       const p2 = this._project3D(vx, 0.55, 0.95, w, h);
       this._drawChevronTrack(ctx, p1.x, p1.y, p2.x, p2.y, t(vLabel));
     } else if (step.type === 'multi_tap') {
+      // Big tap target: soft filled circle, pulsing ring, a tapping finger, and one
+      // dot per tap (filled = done) so "tap here, N more times" reads at a glance.
       const center = this._project3D(0, 0.35, 0.15, w, h);
-      ctx.strokeStyle = `rgba(255, 224, 102, ${0.55 + 0.45 * pulse})`;
+      const R = Math.min(w, h) * 0.13;
+      ctx.fillStyle = `rgba(255, 224, 102, ${0.10 + 0.10 * pulse})`;
+      ctx.beginPath(); ctx.arc(center.x, center.y, R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = `rgba(255, 224, 102, ${0.6 + 0.4 * pulse})`;
       ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.arc(center.x, center.y, 34 + pulse * 14, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(center.x, center.y, R + pulse * 10, 0, Math.PI * 2); ctx.stroke();
+      if (!this.pointerDown) drawGhostTap(ctx, center, this.time);
 
-      drawOutlinedText(ctx, adaptText(t('タップ！（あと{0}回）', step.count - this.subCount)), center.x, center.y - 62, { size: labelPx(w), baseline: 'middle', maxWidth: w - 24 });
+      const px = labelPx(w);
+      drawOutlinedText(ctx, adaptText(t('タップ！（あと{0}回）', step.count - this.subCount)), center.x, center.y - R - px - 8, { size: Math.round(px * 1.15), color: '#ffe066', baseline: 'middle', maxWidth: w - 24 });
+      drawOutlinedText(ctx, adaptText(t('画面のどこをタップしてもOK')), center.x, center.y - R - 6, { size: Math.round(px * 0.85), baseline: 'middle', maxWidth: w - 24 });
+
+      const dotR = 9, gap = 28, y = center.y + R + 24;
+      for (let i = 0; i < step.count; i++) {
+        const x = center.x + (i - (step.count - 1) / 2) * gap;
+        ctx.beginPath(); ctx.arc(x, y, dotR, 0, Math.PI * 2);
+        if (i < this.subCount) { ctx.fillStyle = '#3de08a'; ctx.fill(); }
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.stroke();
+      }
     } else if (step.type === 'swipe_up') {
       this._drawChevronTrack(ctx, w * 0.5, h * 0.76, w * 0.5, h * 0.38, t('上へ一気になぞる'));
     } else if (step.type === 'hold_fill' || step.type === 'toss_cook') {
@@ -633,7 +702,7 @@ export class AjilloCookingGame {
     } else if (step.type === 'mill_circle') {
       const cx = w * 0.5, cy = h * 0.50, rad = Math.min(w, h) * 0.18;
       const turns = this.millSweep / (Math.PI * 2);
-      const inZone = turns >= 2.6 && turns <= 4.8;
+      const inZone = turns >= MILL_MIN && turns <= MILL_MAX;
 
       ctx.strokeStyle = inZone ? '#3de08a' : `rgba(255, 225, 110, ${0.65 + 0.35 * pulse})`;
       ctx.lineWidth = 7;
@@ -649,7 +718,23 @@ export class AjilloCookingGame {
       ctx.beginPath(); ctx.arc(ox, oy, 10, 0, Math.PI * 2); ctx.fill();
 
       const turnText = inZone ? t('{0}回転 — 今だ！指をはなそう', turns.toFixed(1)) : t('{0} 回転（目標 3.0〜4.0回転）', turns.toFixed(1));
-      drawOutlinedText(ctx, adaptText(turnText), cx, cy + rad + 32, { size: labelPx(w), color: inZone ? '#3de08a' : '#ffffff', baseline: 'middle', maxWidth: w - 20 });
+      const px = labelPx(w);
+      drawOutlinedText(ctx, adaptText(turnText), cx, cy + rad + 32, { size: inZone ? Math.round(px * 1.2) : px, color: inZone ? '#3de08a' : '#ffffff', baseline: 'middle', maxWidth: w - 20 });
+
+      // Turn gauge 0-5 with the green target (3-4) and a marker, so it is clear when to let go.
+      const gw = Math.min(300, w * 0.78), gh = 16;
+      const gx = cx - gw * 0.5, gy = cy + rad + 32 + px + 6;
+      const at = (v) => gx + Math.min(1, v / 5) * gw;
+      ctx.fillStyle = 'rgba(8, 16, 30, 0.92)';
+      ctx.beginPath(); ctx.roundRect(gx, gy, gw, gh, 8); ctx.fill();
+      ctx.fillStyle = inZone ? 'rgba(61, 224, 138, 0.95)' : 'rgba(61, 224, 138, 0.55)';
+      ctx.fillRect(at(MILL_MIN), gy, at(MILL_MAX) - at(MILL_MIN), gh);
+      ctx.fillStyle = '#ffe066';
+      ctx.fillRect(gx, gy + 4, Math.max(0, at(turns) - gx), gh - 8);
+      ctx.strokeStyle = '#5ce1ff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(gx, gy, gw, gh, 8); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(at(turns), gy + gh * 0.5, 9, 0, Math.PI * 2); ctx.fill();
     }
   }
 
