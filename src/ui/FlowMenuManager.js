@@ -134,7 +134,7 @@ export class FlowMenuManager {
     this.elResultUI.querySelector('#fr-btn-x').addEventListener('click', () => {
       if (!this.lastFishingSummary) return;
       const r = this.lastFishingSummary;
-      shareToX(`ダイオウイカを釣り上げた！\n評価：${r.rank}（${r.score.toLocaleString()}点）\n全長：${r.lengthMeters}m ／ 重さ：${r.weightKg}kg ／ 時間：${Math.round(r.elapsedTime)}秒\n「${r.comment}」\n#ダイオウイカ深海釣り`);
+      shareToX(`ダイオウイカを釣り上げた！\n評価：${r.rank}（${r.score.toLocaleString()}点）\n全長：${r.lengthMeters}m ／ 重さ：${r.weightKg}kg ／ 時間：${Math.round(r.elapsedTime)}秒\n「${r.comment}」\n#イカゲット`);
     });
     this.elResultUI.querySelector('#fr-btn-next').addEventListener('click', () => {
       this.hideFishingResult();

@@ -12,10 +12,22 @@ import { ButcherGame } from './games/ButcherGame.js';
 import { AjilloCookingGame } from './games/AjilloCookingGame.js';
 import { FlowMenuManager, shareToX } from './ui/FlowMenuManager.js';
 import { MiniGameAudio } from './audio/MiniGameAudio.js';
+import { ensureAudioContext, unlockAudio, installAudioUnlock, onAudioContextCreated } from './audio/SharedAudio.js';
 import { applyStudioEnvironment } from './models/StudioEnv.js';
 import { ResultFXManager } from './ui/ResultFX.js';
 import { FishingTutorial } from './ui/FishingTutorial.js';
 import { GuideStore } from './ui/MiniGameCoach.js';
+import { installJapaneseLineBreak } from './ui/JaLineBreak.js';
+import { installDeviceProfile } from './ui/DeviceProfile.js';
+import { installTouchGuard, setBackGuard } from './ui/TouchGuard.js';
+
+// Tag <html> with the device type (phone / tablet / PC / dual screen) and input (touch / mouse).
+installDeviceProfile();
+// Stop selection, long-press menus, zoom, edge swipes and "back" from interrupting play.
+installTouchGuard();
+// Break Japanese text only between phrases everywhere in the game
+// (and swap finger words for mouse words on PC).
+installJapaneseLineBreak();
 
 // =============================================================================
 // 1. PROCEDURAL WEB AUDIO ENGINE
@@ -29,14 +41,17 @@ class MaritimeAudio {
   }
 
   initOnGesture() {
-    if (this.started) {
-      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-      return;
-    }
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    this.ctx = new AudioCtx();
+    unlockAudio();
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
     this.started = true;
+    if (this.ctx !== ctx) this._build(ctx);
+  }
+
+  // Builds the always-on sea / engine / winch sound graph on the given context.
+  // Called again when the shared context had to be replaced (see SharedAudio.js).
+  _build(ctx) {
+    this.ctx = ctx;
 
     this.master = this.ctx.createGain();
     this.master.gain.value = this.muted ? 0 : 0.45;
@@ -217,6 +232,10 @@ let activeAppMode = 'FISHING'; // 'FISHING' | 'FISHING_RESULT' | 'BUTCHER' | 'CO
 const miniAudio = new MiniGameAudio();
 const resultFX = new ResultFXManager(appContainer);
 const tutorial = new FishingTutorial(appContainer);
+// When a guide card opens, let go of any held button so the game does not keep
+// reeling (or steering) the moment the card is closed.
+tutorial.onPauseChange = (paused) => { if (paused) hud.releaseAllInputs(); };
+tutorial.onBeforeStep = (step) => { if (step.needGauges) hud.openGauges(); };
 const fishingResultScene = new FishingResultScene();
 
 const flowMenus = new FlowMenuManager(appContainer, {
@@ -323,7 +342,11 @@ const hud = new HUDManager(appContainer, {
   }
 });
 
-window.addEventListener('pointerdown', () => audio.initOnGesture(), { once: true });
+// Wake the shared audio on every tap (not only the first one), so sound comes back
+// after the page was hidden, the phone was locked, or a game was replayed.
+installAudioUnlock();
+window.addEventListener('pointerdown', () => audio.initOnGesture(), { capture: true });
+onAudioContextCreated((ctx) => { if (audio.started) audio._build(ctx); });
 hud.setGuideReplayVisible(GuideStore.anySeen());
 
 // =============================================================================
@@ -376,6 +399,9 @@ function animate(now) {
   const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) * 0.001));
   lastTime = now;
   totalTime += dt;
+
+  // While playing (anything but the home screen), "back" keeps the player in the game.
+  setBackGuard(activeAppMode !== 'FISHING' || engine.phase !== 'HOME');
 
   // Dispatch active secondary 3D stage (Comparison Result / Butcher Game / Ajillo Cooking Game)
   if (activeAppMode === 'FISHING_RESULT') {
@@ -659,7 +685,7 @@ function animate(now) {
     renderCameraViewport(surfaceCamera, 0, 0, W, H, false);
   }
 
-  const showPiP = snap.phase !== 'HOME' && snap.phase !== 'CAPTURE_SCENE' && snap.phase !== 'INSPECT' && snap.phase !== 'SUCCESS' && hud.isPiPVisible();
+  const showPiP = snap.phase !== 'HOME' && snap.phase !== 'CAPTURE_SCENE' && snap.phase !== 'INSPECT' && snap.phase !== 'SUCCESS' && snap.phase !== 'LANDING' && hud.isPiPVisible();
   if (showPiP) {
     const isNarrow = W <= 768;
     const pipW = Math.round(isNarrow ? Math.min(150, W * 0.36) : Math.min(260, W * 0.26));

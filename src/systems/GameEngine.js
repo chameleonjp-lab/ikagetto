@@ -579,6 +579,10 @@ export class GameEngine {
     this.events.alarmActive = false;
     this.events.alarmType = '';
 
+    // Paused (a guide card is open): do not advance anything at all.
+    // Without this, the clamp below still moved the game 0.001s every frame.
+    if (!(dt > 0)) return this.getSnapshot();
+
     this.lightPower = 0.45;
     this.dragLevel = (this.phase === 'FIGHT' && this.squid.state === 'ESCAPE') ? 0.35 : 0.62;
     this.winchPower = controls.winchPower || 0;

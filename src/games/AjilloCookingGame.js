@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { CookingStageModels } from '../models/CookingModels.js';
 import { getCommentForScore } from '../data/SquidTiersAndComments.js';
 import { MiniGameCoach, GuideStore, drawGhostSwipe, drawGhostTap, drawGhostHold, drawGhostShuttle, drawGhostCircle } from '../ui/MiniGameCoach.js';
+import { adaptText } from '../ui/DeviceProfile.js';
 
 const COOK_STEPS_10 = [
   { id: 'score_arm', title: 'イカ足の隠し包丁',             hint: 'イカ足を、ななめに2回なぞる',            rule: 'count', type: 'multi_cut',   count: 2, coach: 'intro', maxScore: 4500 },
@@ -150,7 +151,7 @@ export class AjilloCookingGame {
     this.el.querySelector('#cook-btn-x').addEventListener('click', () => {
       if (this.callbacks.onShareX) {
         const comment = getCommentForScore(this.totalScore, 'cooking');
-        this.callbacks.onShareX(`ダイオウイカのアヒージョ（全10工程）を作った！\n調理スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#ダイオウイカ深海釣り`);
+        this.callbacks.onShareX(`ダイオウイカのアヒージョ（全10工程）を作った！\n調理スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#イカゲット`);
       }
     });
     this.el.querySelector('#cook-btn-home').addEventListener('click', () => {
@@ -166,6 +167,8 @@ export class AjilloCookingGame {
     this.guideCanvas.addEventListener('pointerdown', (e) => {
       if (!this.active || this.mode !== 'PLAY' || this.coach.isBlocking()) return;
       e.preventDefault();
+      // Keep receiving the move / release even if the mouse leaves the canvas while dragging.
+      try { this.guideCanvas.setPointerCapture(e.pointerId); } catch (_) {}
       const pt = toNorm(e);
       this.pointerDown = true;
       this.touchedThisStep = true;
@@ -542,7 +545,7 @@ export class AjilloCookingGame {
       ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`タップ！（あと${step.count - this.subCount}回）`, center.x, center.y - 53);
+      ctx.fillText(adaptText(`タップ！（あと${step.count - this.subCount}回）`), center.x, center.y - 53);
     } else if (step.type === 'swipe_up') {
       this._drawChevronTrack(ctx, w * 0.5, h * 0.76, w * 0.5, h * 0.38, '上へ一気になぞる');
     } else if (step.type === 'hold_fill' || step.type === 'toss_cook') {
@@ -591,7 +594,7 @@ export class AjilloCookingGame {
         ? '★ 今だ！指をはなそう ★'
         : (val > maxOk ? (step.type === 'hold_fill' ? '入れすぎ！溢れる！' : '焼きすぎ！焦げる！')
           : (step.type === 'hold_fill' ? '長押しで注ぐ → 緑で指をはなす' : '左右に動かして加熱 → 緑で指をはなす'));
-      ctx.fillText(statusText, w * 0.5, by - 12);
+      ctx.fillText(adaptText(statusText), w * 0.5, by - 12);
     } else if (step.type === 'heat_keep') {
       const bw = Math.min(320, w * 0.80), bh = 30;
       const bx = (w - bw) * 0.5, by = h * 0.76;
@@ -638,7 +641,7 @@ export class AjilloCookingGame {
       ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(inZone ? `${turns.toFixed(1)}回転 — 今だ！指をはなそう` : `${turns.toFixed(1)} 回転（目標 3.0〜4.0回転）`, cx, cy + rad + 32);
+      ctx.fillText(adaptText(inZone ? `${turns.toFixed(1)}回転 — 今だ！指をはなそう` : `${turns.toFixed(1)} 回転（目標 3.0〜4.0回転）`), cx, cy + rad + 32);
     }
   }
 

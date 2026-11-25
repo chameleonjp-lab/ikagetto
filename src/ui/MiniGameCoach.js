@@ -195,7 +195,7 @@ export class MiniGameCoach {
     this.elDemo.classList.toggle('hidden', !DEMOS[card.demo]);
     this.elTitle.textContent = card.title;
     this.elBody.innerHTML = card.html;
-    this.elOk.textContent = card.okLabel || 'やってみる';
+    this.elOk.textContent = '分かった';
     this.el.classList.remove('hidden');
     this.open = true;
     if (this.onChange) this.onChange(true);
@@ -223,7 +223,7 @@ export class MiniGameCoach {
           </div>
         </div>
         <div class="coach-body"></div>
-        <button type="button" class="coach-ok">やってみる</button>
+        <button type="button" class="coach-ok">分かった</button>
         <div class="coach-note">この説明が出ている間、ゲームは止まっています</div>
       </div>
     `;

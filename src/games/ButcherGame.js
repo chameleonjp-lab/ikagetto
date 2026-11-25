@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ButcherStageModels } from '../models/ButcherModels.js';
 import { getCommentForScore } from '../data/SquidTiersAndComments.js';
 import { MiniGameCoach, drawGhostSwipe, drawGhostTap, drawGhostCircle } from '../ui/MiniGameCoach.js';
+import { adaptText } from '../ui/DeviceProfile.js';
 
 // Each step specifies exact 3D camera focus (fx, fz) AND exact 3D world start/end points
 // so the on-screen glowing chevron guide aligns 1:1 with the anatomical part being cut!
@@ -212,7 +213,7 @@ export class ButcherGame {
     this.el.querySelector('#butcher-btn-x').addEventListener('click', () => {
       if (this.callbacks.onShareX) {
         const comment = getCommentForScore(this.totalScore, 'butcher');
-        this.callbacks.onShareX(`ダイオウイカ（全15工程）を解体した！\n解体スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#ダイオウイカ深海釣り`);
+        this.callbacks.onShareX(`ダイオウイカ（全15工程）を解体した！\n解体スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#イカゲット`);
       }
     });
     this.el.querySelector('#butcher-btn-next').addEventListener('click', () => {
@@ -228,6 +229,8 @@ export class ButcherGame {
     this.guideCanvas.addEventListener('pointerdown', (e) => {
       if (!this.active || this.mode !== 'PLAY' || this.coach.isBlocking()) return;
       e.preventDefault();
+      // Keep receiving the move / release even if the mouse leaves the canvas while dragging.
+      try { this.guideCanvas.setPointerCapture(e.pointerId); } catch (_) {}
       const pt = toNorm(e);
       this.pointerDown = true;
       this.touchedThisStep = true;
@@ -462,7 +465,7 @@ export class ButcherGame {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 15px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('▼ 緑に重なったらタップ ▼', w * 0.5, by - 14);
+      ctx.fillText(adaptText('▼ 緑に重なったらタップ ▼'), w * 0.5, by - 14);
     } else if (step.type === 'circle' && step.p0) {
       const c = this._projectToScreen(step.p0, w, h, this._projA);
       const rad = Math.min(w, h) * 0.16;

@@ -1,3 +1,5 @@
+import { isMouseInput } from './DeviceProfile.js';
+
 export class HUDManager {
   constructor(rootContainer, callbacks = {}) {
     this.root = rootContainer;
@@ -122,46 +124,44 @@ export class HUDManager {
         -webkit-backdrop-filter: blur(10px);
         box-shadow: 0 24px 64px rgba(0, 0, 0, 0.72);
       }
-      .home-kicker {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.2em;
-        color: var(--cyan);
-        text-transform: uppercase;
-      }
       .home-title {
-        font-size: clamp(24px, 6.5vw, 32px);
+        font-size: clamp(40px, 13vw, 56px);
         font-weight: 900;
         color: #f4faff;
-        margin: 8px 0 4px;
-        letter-spacing: 0.04em;
-      }
-      .home-latin {
-        font-size: 13px;
-        font-style: italic;
-        color: #8bc2e6;
-        margin-bottom: 16px;
+        margin: 2px 0 18px;
+        letter-spacing: 0.08em;
+        line-height: 1.1;
+        text-shadow: 0 0 22px rgba(92, 225, 255, 0.45);
       }
       .home-steps {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 8px;
-        margin-bottom: 16px;
-        text-align: left;
+        margin-bottom: 20px;
       }
       .home-step {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
         background: rgba(12, 30, 56, 0.75);
-        border: 1px solid rgba(92, 225, 255, 0.2);
-        border-radius: 9px;
-        padding: 8px;
-        font-size: 11px;
-        line-height: 1.4;
+        border: 1px solid rgba(92, 225, 255, 0.25);
+        border-radius: 12px;
+        padding: 12px 4px 10px;
       }
-      .home-step strong {
-        display: block;
-        color: var(--amber);
-        font-size: 11.5px;
-        margin-bottom: 2px;
+      .home-step-num {
+        width: 24px; height: 24px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--amber); color: #13233a;
+        font-size: 14px; font-weight: 900; line-height: 1;
+      }
+      .home-step-icon { width: 52px; height: 52px; color: #7ee8ff; }
+      .home-step-label {
+        font-size: clamp(12.5px, 3.6vw, 14.5px);
+        font-weight: 800;
+        color: #f0f8ff;
+        line-height: 1.3;
       }
       .home-equip-note {
         font-size: 11px;
@@ -345,6 +345,8 @@ export class HUDManager {
         color: #3de08a;
         text-shadow: 0 0 12px rgba(61, 224, 138, 0.65);
       }
+      .sonar-dist-big, .sonar-bearing { white-space: nowrap; }
+      .sonar-big-row { gap: 6px; }
       .sonar-bearing {
         font-size: 12px;
         font-weight: 800;
@@ -440,14 +442,41 @@ export class HUDManager {
         position: fixed;
         right: 10px;
         bottom: 10px;
-        width: 158px;
-        padding: 7px;
+        width: min(230px, calc(100vw - 170px));
+        padding: 8px;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 7px;
         z-index: 26;
       }
-      .winch-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+      .winch-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+      .winch-pair.hidden, #btn-hook.hidden { display: none; }
+
+      /* Big, colour-coded winch buttons: green = reel in, blue = pay out.
+         Grey = cannot press now. Blinking = press this one now. */
+      #btn-reel-in, #btn-reel-out {
+        min-height: 78px;
+        padding: 8px 4px;
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.25;
+        border-radius: 12px;
+        color: #ffffff;
+      }
+      #btn-reel-in  { background: rgba(28, 128, 74, 0.95); border: 2px solid rgba(110, 240, 160, 0.75); }
+      #btn-reel-out { background: rgba(24, 92, 168, 0.95); border: 2px solid rgba(120, 200, 255, 0.75); }
+      #btn-reel-in.pressed  { background: rgba(46, 176, 104, 1); }
+      #btn-reel-out.pressed { background: rgba(40, 130, 220, 1); }
+      #btn-reel-in.dim, #btn-reel-out.dim { opacity: 0.45; }
+      #btn-reel-in.blink, #btn-reel-out.blink { animation: btnBlink 0.7s ease-in-out infinite; }
+      #btn-reel-in.blink  { --blink-glow: rgba(110, 255, 170, 0.95); }
+      #btn-reel-out.blink { --blink-glow: rgba(120, 210, 255, 0.95); }
+      @keyframes btnBlink {
+        0%, 100% { filter: brightness(1); box-shadow: 0 0 6px var(--blink-glow); transform: scale(1); }
+        50%      { filter: brightness(1.45); box-shadow: 0 0 22px var(--blink-glow), 0 0 40px var(--blink-glow); transform: scale(1.04); }
+      }
+      #btn-hook { min-height: 72px; font-size: 17px; font-weight: 900; border-radius: 12px; }
+      #btn-crane { display: none !important; }
       .ctrl-btn {
         background: rgba(14, 34, 58, 0.92);
         border: 1px solid rgba(92, 225, 255, 0.32);
@@ -484,7 +513,9 @@ export class HUDManager {
       #crane-timing-panel {
         position: fixed;
         left: 50%;
-        bottom: 162px;
+        /* Shown only while landing, when the stick and winch pad are hidden,
+           so it sits low and leaves the middle free for the "海面到達!!" callout. */
+        bottom: calc(24px + env(safe-area-inset-bottom, 0px));
         transform: translateX(-50%);
         width: min(360px, calc(100vw - 20px));
         padding: 12px 14px;
@@ -683,7 +714,7 @@ export class HUDManager {
       @media (max-width: 768px) {
         #hud-top-wrap { left: 50px; right: 6px; top: 6px; }
         #ship-keypad { width: 132px; left: 8px; bottom: 8px; padding: 7px 7px 9px; }
-        #action-pad { width: 152px; right: 8px; bottom: 8px; padding: 6px; }
+        #action-pad { right: 8px; bottom: 8px; padding: 7px; }
         #hud-sonar-panel { left: 8px; bottom: 162px; width: 204px; }
         .pip-label { top: 96px; right: 8px; }
         .ctrl-btn { font-size: 10.5px; padding: 7px 3px; }
@@ -717,16 +748,41 @@ export class HUDManager {
       <!-- HOME SCREEN -->
       <div id="home-screen">
         <div class="home-card">
-          <div class="home-kicker">DEEP SEA FISHING SIMULATOR</div>
           <div class="home-title">イカゲット</div>
-          <div class="home-latin">Architeuthis dux — Depth 800m</div>
           <div class="home-steps">
-            <div class="home-step"><strong>① 索敵・投下</strong>360°スティックで反応地点へ近づき仕掛けを投下</div>
-            <div class="home-step"><strong>② 深海フッキング</strong>抱え込みの瞬間に光るフッキングボタンを押す</div>
-            <div class="home-step"><strong>③ ファイト＆揚収</strong>張力・温度を管理し波頂点でクレーン揚収</div>
+            <div class="home-step">
+              <div class="home-step-num">1</div>
+              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+                <circle cx="24" cy="24" r="4" fill="currentColor" stroke="none"/>
+                <path d="M15 33 A12.7 12.7 0 0 1 15 15"/><path d="M33 15 A12.7 12.7 0 0 1 33 33"/>
+                <path d="M9 39 A21 21 0 0 1 9 9" opacity="0.55"/><path d="M39 9 A21 21 0 0 1 39 39" opacity="0.55"/>
+              </svg>
+              <div class="home-step-label">イカを探す</div>
+            </div>
+            <div class="home-step">
+              <div class="home-step-num">2</div>
+              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M24 4 C31 10 32 19 30 27 H18 C16 19 17 10 24 4 Z"/>
+                <circle cx="21" cy="23" r="1.6" fill="currentColor" stroke="none"/><circle cx="27" cy="23" r="1.6" fill="currentColor" stroke="none"/>
+                <path d="M19 27 C17 34 13 37 11 43"/><path d="M22 27 C21 35 20 39 19 44"/>
+                <path d="M26 27 C27 35 28 39 29 44"/><path d="M29 27 C31 34 35 37 37 43"/>
+                <path d="M40 8 L40 15" stroke="#ffd454"/><circle cx="40" cy="20" r="1.5" fill="#ffd454" stroke="none"/>
+              </svg>
+              <div class="home-step-label">イカを見つける</div>
+            </div>
+            <div class="home-step">
+              <div class="home-step-num">3</div>
+              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 42 L32 6"/>
+                <path d="M32 6 C36 14 37 22 36 30"/>
+                <path d="M36 30 V36 A4 4 0 0 1 28 36"/><path d="M28 36 L30 34"/>
+                <path d="M3 42 H13" opacity="0.55"/>
+              </svg>
+              <div class="home-step-label">イカを釣る</div>
+            </div>
           </div>
 
-          <button type="button" id="btn-home-play" class="home-play-btn">出港する（PLAY）</button>
+          <button type="button" id="btn-home-play" class="home-play-btn">出港する</button>
           <button type="button" id="btn-home-guide" class="home-guide-link hidden">はじめてガイドを、もう一度見る</button>
         </div>
       </div>
@@ -757,15 +813,15 @@ export class HUDManager {
             </div>
           </div>
           <div class="top-gauge-grid">
-            <div class="gauge-row">
+            <div class="gauge-row" id="gauge-row-tension">
               <div class="gauge-lbl"><span>ライン張力</span><span id="val-tension">0%</span></div>
               <div class="gauge-track"><div class="gauge-fill" id="bar-tension"></div></div>
             </div>
-            <div class="gauge-row">
+            <div class="gauge-row" id="gauge-row-temp">
               <div class="gauge-lbl"><span>ウインチ温度</span><span id="val-temp">26°C</span></div>
               <div class="gauge-track"><div class="gauge-fill amber" id="bar-temp"></div></div>
             </div>
-            <div class="gauge-row">
+            <div class="gauge-row" id="gauge-row-stamina">
               <div class="gauge-lbl"><span>イカスタミナ</span><span id="val-stamina">100%</span></div>
               <div class="gauge-track"><div class="gauge-fill cyan" id="bar-stamina"></div></div>
             </div>
@@ -840,6 +896,7 @@ export class HUDManager {
           <span class="joy-dir-lbl joy-dir-e">▶</span>
           <div id="joy-knob"></div>
         </div>
+        <div class="key-hint">WASDキーでも操作</div>
       </div>
 
       <!-- BOTTOM-RIGHT: Always-Visible Winch / Hookup / Crane Action Pad -->
@@ -848,11 +905,11 @@ export class HUDManager {
           <span>ウインチ・操作</span>
           <span id="action-depth-mini" style="color:#5ce1ff;">0 m</span>
         </div>
-        <div class="winch-pair">
-          <button type="button" class="ctrl-btn" data-hold="reelIn" id="btn-reel-in" disabled>↑ 巻上</button>
-          <button type="button" class="ctrl-btn" data-hold="reelOut" id="btn-reel-out" disabled>↓ 繰出/投下</button>
+        <div class="winch-pair" id="winch-pair">
+          <button type="button" class="ctrl-btn" data-hold="reelIn" id="btn-reel-in" disabled>↑<br>巻上<span class="key-hint">↑キー</span></button>
+          <button type="button" class="ctrl-btn" data-hold="reelOut" id="btn-reel-out" disabled>↓<br>繰出/投下<span class="key-hint">↓キー</span></button>
         </div>
-        <button type="button" class="ctrl-btn hook-btn" id="btn-hook" disabled>フッキング (Space)</button>
+        <button type="button" class="ctrl-btn hook-btn" id="btn-hook" disabled>フッキング</button>
         <button type="button" class="ctrl-btn crane-btn" id="btn-crane" disabled>クレーン (0/3)</button>
       </div>
 
@@ -931,6 +988,7 @@ export class HUDManager {
     this.elRngLight = null;
     this.elValLight = null;
 
+    this.elWinchPair = document.getElementById('winch-pair');
     this.elBtnReelIn = document.getElementById('btn-reel-in');
     this.elBtnReelOut = document.getElementById('btn-reel-out');
     this.elBtnHook = document.getElementById('btn-hook');
@@ -1052,9 +1110,10 @@ export class HUDManager {
     });
 
     // 360° Circular Swipe Joystick Pointer Handling
-    const maxJoyRadius = 36;
     const updateJoyFromPointer = (clientX, clientY) => {
       const rect = this.elJoyBase.getBoundingClientRect();
+      // Scales with the stick size (larger on tablets).
+      const maxJoyRadius = rect.width * 0.32;
       const cx = rect.left + rect.width * 0.5;
       const cy = rect.top + rect.height * 0.5;
       let dx = clientX - cx;
@@ -1068,7 +1127,7 @@ export class HUDManager {
       this.joyY = dy / maxJoyRadius;
       this.elJoyKnob.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
     };
-    const resetJoy = () => {
+    const resetJoy = this._resetJoy = () => {
       this.joyPointerId = null;
       this.joyX = 0;
       this.joyY = 0;
@@ -1158,6 +1217,23 @@ export class HUDManager {
     this.sonarDepthHistory.fill(0);
     this._applyPanelVisibility();
     if (this.callbacks.onRetry) this.callbacks.onRetry();
+  }
+
+  // Forget every finger / key that is currently held. Used when a guide card opens:
+  // the card swallows the finger-up event, so a held "↑ 巻上" would stay pressed.
+  // Make sure the top meters are open (used by the meter guide).
+  openGauges() {
+    this.panelState.gauges = true;
+    this._applyPanelVisibility();
+  }
+
+  releaseAllInputs() {
+    this.heldButtons.clear();
+    this.layer.querySelectorAll('[data-hold].pressed').forEach((b) => b.classList.remove('pressed'));
+    this.keys.clear();
+    if (this._resetJoy) this._resetJoy();
+    this.inputState.hookAction = false;
+    this.inputState.craneAction = false;
   }
 
   pollControls() {
@@ -1303,10 +1379,20 @@ export class HUDManager {
     const isActivePlay = !isHome && !isCapture && !isInspect && !isEnd;
 
     this.elHomeScreen.classList.toggle('hidden', !isHome);
-    this.elTopWrap.classList.toggle('hidden', isHome || isInspect || isEnd);
-    this.elShipKeypad.classList.toggle('hidden', !isActivePlay);
-    this.elActionPad.classList.toggle('hidden', !isActivePlay);
-    this.elSonarPanel.classList.toggle('hidden', !isActivePlay);
+    if (isHome) this.elPipLabel.classList.add('hidden');
+    // Show only what the current step needs, so the 3D scene stays as large as possible.
+    //  SEARCH    : sonar + stick + winch buttons
+    //  LURE_HOOK : hook button only (stick / winch do nothing useful while waiting)
+    //  FIGHT     : stick + winch buttons + top meters
+    //  LANDING   : only the big crane panel in the middle
+    const ph = snap.phase;
+    const isLanding = ph === 'LANDING';
+    this.elTopWrap.classList.toggle('hidden', isHome || isInspect || isEnd || isCapture || isLanding);
+    this.elShipKeypad.classList.toggle('hidden', !(ph === 'SEARCH' || ph === 'FIGHT'));
+    this.elActionPad.classList.toggle('hidden', !(ph === 'SEARCH' || ph === 'LURE_HOOK' || ph === 'FIGHT'));
+    this.elWinchPair.classList.toggle('hidden', ph === 'LURE_HOOK');
+    this.elBtnHook.classList.toggle('hidden', ph !== 'LURE_HOOK');
+    this.elSonarPanel.classList.toggle('hidden', ph !== 'SEARCH');
     this.elCraneTimingPanel.classList.toggle('hidden', snap.phase !== 'LANDING');
     this.elInspectBar.classList.toggle('hidden', !isInspect);
 
@@ -1372,19 +1458,19 @@ export class HUDManager {
     this.elRovOverlay.classList.toggle('active', isROVMain && isActivePlay);
     this.elRovMeta.textContent = `水深 ${Math.round(snap.depth)} m`;
 
-    this.elPipLabel.classList.toggle('hidden', !this.panelState.pip || !isActivePlay);
+    this.elPipLabel.classList.toggle('hidden', !this.panelState.pip || !isActivePlay || isLanding);
     this.elPipLabel.textContent = isROVMain ? 'PiP: SURFACE ×' : 'PiP: DEEP ROV ×';
 
     // Upgraded Sonar: Large Distance + Bearing Arrow + Linear Line-Graph
     this._drawLinearSonar(snap, dt);
     const dM = Math.round(snap.hotspot.distance);
     const dropReady = snap.phase === 'SEARCH' && dM < 22;
-    this.elSonarDistBig.textContent = snap.phase === 'SEARCH' ? (dropReady ? `${dM} m OK!` : `${dM} m`) : `${Math.round(snap.depth)} m`;
+    this.elSonarDistBig.textContent = snap.phase === 'SEARCH' ? `${dM} m` : `${Math.round(snap.depth)} m`;
     this.elSonarDistBig.classList.toggle('ready', dropReady);
 
     const b = snap.hotspot.relBearing || 0;
     if (snap.phase === 'SEARCH') {
-      if (dropReady) this.elSonarBearing.textContent = '◎ 真上到達';
+      if (dropReady) this.elSonarBearing.textContent = '◎ 投下OK';
       else if (Math.abs(b) < 0.45) this.elSonarBearing.textContent = '▲ まっすぐ';
       else if (Math.abs(b) > 2.55) this.elSonarBearing.textContent = '▼ 後ろ方向';
       else if (b > 0) this.elSonarBearing.textContent = '▶ 右方向';
@@ -1425,26 +1511,32 @@ export class HUDManager {
     this.elBtnHook.disabled = !canHook;
     this.elBtnCrane.disabled = !canCrane;
 
-    this.elBtnReelIn.classList.remove('glow-cyan', 'glow-gold', 'glow-red');
-    this.elBtnReelOut.classList.remove('glow-cyan', 'glow-gold', 'glow-red');
+    this.elBtnReelIn.classList.remove('glow-cyan', 'glow-gold', 'glow-red', 'blink', 'dim');
+    this.elBtnReelOut.classList.remove('glow-cyan', 'glow-gold', 'glow-red', 'blink', 'dim');
     this.elBtnHook.classList.remove('glow-cyan', 'glow-gold', 'glow-red');
     this.elBtnCrane.classList.remove('glow-cyan', 'glow-gold', 'glow-red');
     this.elBtnCraneBig.classList.remove('glow-gold');
 
     if (snap.phase === 'SEARCH' && dM < 22 && snap.depth < 600) {
-      this.elBtnReelOut.classList.add('glow-cyan');
+      this.elBtnReelOut.classList.add('blink');
     }
 
     if (snap.phase === 'LURE_HOOK' && snap.squid.lureStage === 'WRAP') {
-      this.elBtnHook.textContent = `今すぐフッキング! (${snap.squid.wrapWindowLeft.toFixed(1)}s)`;
+      this.elBtnHook.textContent = `今すぐフッキング! (${snap.squid.wrapWindowLeft.toFixed(1)}s)${isMouseInput() ? ' [スペース]' : ''}`;
       this.elBtnHook.classList.add('glow-red');
     } else {
-      this.elBtnHook.textContent = 'フッキング (Space)';
+      this.elBtnHook.textContent = isMouseInput() ? 'フッキング [スペース]' : 'フッキング';
     }
 
     if (snap.phase === 'FIGHT') {
-      if (snap.tension >= 85 || snap.winchTemp >= 100) this.elBtnReelOut.classList.add('glow-gold');
-      else if (snap.tension < 72 && snap.winchTemp < 92) this.elBtnReelIn.classList.add('glow-cyan');
+      if (snap.tension >= 85 || snap.winchTemp >= 100) {
+        // Danger: pay out line. Reel-in stays pressable but is dimmed.
+        this.elBtnReelOut.classList.add('blink');
+        this.elBtnReelIn.classList.add('dim');
+      } else if (snap.tension < 72 && snap.winchTemp < 92) {
+        this.elBtnReelIn.classList.add('blink');
+        this.elBtnReelOut.classList.add('dim');
+      }
     }
 
     // Large Dedicated Crane Timing Panel (Phase 5 LANDING)

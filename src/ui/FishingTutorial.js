@@ -121,7 +121,7 @@ export class FishingTutorial {
         <div class="tut-title" id="tut-title">--</div>
         <div class="tut-body" id="tut-body">--</div>
         <div class="tut-actions">
-          <button type="button" class="tut-ok-btn" id="tut-ok">わかった</button>
+          <button type="button" class="tut-ok-btn" id="tut-ok">分かった</button>
         </div>
         <div class="tut-pause-note">この説明が出ている間、ゲームは止まっています</div>
       </div>
@@ -213,13 +213,14 @@ export class FishingTutorial {
       return;
     }
     this.currentStep = this.queue.shift();
+    if (this.onBeforeStep) this.onBeforeStep(this.currentStep);
     this.active = true;
     if (this.onPauseChange) this.onPauseChange(true);
 
     this.elTag.textContent = this.currentStep.tag;
     this.elTitle.textContent = this.currentStep.title;
     this.elBody.innerHTML = this.currentStep.html;
-    this.elOk.textContent = this.queue.length > 0 ? '次へ ▶' : (this.currentStep.okLabel || 'わかった');
+    this.elOk.textContent = '分かった';
     this.el.classList.remove('hidden');
 
     // Position spotlight on next frame so target HUD panel layout is settled
@@ -296,14 +297,13 @@ export class FishingTutorial {
           selector: '#ship-keypad',
           title: '丸いスティックで、船を動かす',
           html: '指を置いてすべらせると、その向きに船が進みます。ソナーの数字が<b>22m以下</b>になるまで近づこう。',
-          okLabel: '船を動かす'
         }
       ]);
       return;
     }
 
     // 2. Arrived above the target: explain the drop button.
-    if (this._armed('search_drop', phase === 'SEARCH' && snap.distanceToTarget <= 22, 0.4)) {
+    if (this._armed('search_drop', phase === 'SEARCH' && snap.hotspot && snap.hotspot.distance <= 22, 0.4)) {
       this._enqueue([
         {
           id: 'search_drop',
@@ -311,7 +311,6 @@ export class FishingTutorial {
           selector: '#btn-reel-out',
           title: '「↓ 繰出/投下」を長押しする',
           html: '仕掛けが深海へ降りていきます。水深が<b>600m</b>に届くと、イカが近づいてきます。',
-          okLabel: '仕掛けを降ろす'
         }
       ]);
       return;
@@ -326,27 +325,58 @@ export class FishingTutorial {
           selector: '#btn-hook',
           title: 'まだ押さずに、イカを待つ',
           html: '腕で餌をさわっている間に押すと、イカが逃げます。<b>「HOOK UP!!」</b>の文字が出たら、赤く光る<b>「フッキング」</b>をすぐ押そう。数秒で消えます。',
-          okLabel: '待つ'
         }
       ]);
       return;
     }
 
-    // 4. FIGHT: let the "掛かった!!" callout play first, then explain the meters.
-    if (this._armed('fight_gauges', phase === 'FIGHT', 1.3)) {
+    // 4. FIGHT: let the "掛かった!!" callout play first, then show the reel-in button.
+    if (this._armed('fight_reel_in', phase === 'FIGHT', 1.3)) {
       this._enqueue([
         {
-          id: 'fight_gauges',
+          id: 'fight_reel_in',
           tag: 'はじめてガイド',
-          selector: '#top-gauges',
+          selector: '#btn-reel-in',
           title: '「↑ 巻上」を長押しして引き上げる',
-          html: `水深0mまで巻き上げれば成功です。上の計器を見ながら巻こう。
-          <ul>
-            <li><b>ライン張力</b>が赤くなったら、巻上から指をはなすか「↓ 繰出」で糸を出す</li>
-            <li><b>ウインチ温度</b>が高いときも、少し休ませる</li>
-            <li><b>イカスタミナ</b>が減るほど、楽に巻ける</li>
-          </ul>`,
-          okLabel: '巻き上げる'
+          html: '押している間、糸を巻き上げます。水深が<b>0m</b>になれば、海面まで引き上げ成功です。'
+        }
+      ]);
+      return;
+    }
+
+    // 4b. Once the player has really started reeling, explain each meter one by one.
+    if (this._armed('fight_tension', phase === 'FIGHT' && this.shownSteps.has('fight_reel_in') && !this.active && snap.winchPower > 0, 0.6)) {
+      this._enqueue([
+        {
+          id: 'fight_tension',
+          tag: 'はじめてガイド',
+          selector: '#gauge-row-tension',
+          needGauges: true,
+          title: 'ライン張力：糸が引っぱられる強さ',
+          html: 'イカが暴れたり、巻き続けたりすると上がります。<b>100%</b>のまま少したつと、糸が切れて失敗です。'
+        },
+        {
+          id: 'fight_temp',
+          tag: 'はじめてガイド',
+          selector: '#gauge-row-temp',
+          needGauges: true,
+          title: 'ウインチ温度：巻き上げる機械の熱さ',
+          html: '強い力で巻き続けると上がります。熱くなりすぎると機械がこわれて失敗です。高いときは巻上から指をはなして冷まそう。'
+        },
+        {
+          id: 'fight_stamina',
+          tag: 'はじめてガイド',
+          selector: '#gauge-row-stamina',
+          needGauges: true,
+          title: 'イカスタミナ：イカの残りの体力',
+          html: 'イカが暴れるたびに減ります。<b>少なくなるほど</b>イカの引きが弱まり、楽に巻き上げられます。'
+        },
+        {
+          id: 'fight_reel_out',
+          tag: 'はじめてガイド',
+          selector: '#btn-reel-out',
+          title: '張力が高いときは「↓ 繰出」で糸を出す',
+          html: '張力が高くなったら、巻上から指をはなすか、点滅する<b>「↓ 繰出」</b>を押して糸をゆるめよう。'
         }
       ]);
       return;
@@ -361,7 +391,6 @@ export class FishingTutorial {
           selector: '#crane-timing-panel',
           title: '3つが緑になったら、クレーンを押す',
           html: '「ロール」「イカ静止」「波頂点」の3つが緑になると、オレンジのボタンが光ります。その瞬間に押す操作を<b>3回</b>成功させると捕獲です。',
-          okLabel: '引き上げる',
           isFinal: true
         }
       ]);
