@@ -670,7 +670,7 @@ function animate(now) {
     renderCameraViewport(surfaceCamera, 0, 0, W, H, false);
   }
 
-  const showPiP = snap.phase !== 'HOME' && snap.phase !== 'CAPTURE_SCENE' && snap.phase !== 'INSPECT' && snap.phase !== 'SUCCESS' && hud.isPiPVisible();
+  const showPiP = snap.phase !== 'HOME' && snap.phase !== 'CAPTURE_SCENE' && snap.phase !== 'INSPECT' && snap.phase !== 'SUCCESS' && snap.phase !== 'LANDING' && hud.isPiPVisible();
   if (showPiP) {
     const isNarrow = W <= 768;
     const pipW = Math.round(isNarrow ? Math.min(150, W * 0.36) : Math.min(260, W * 0.26));

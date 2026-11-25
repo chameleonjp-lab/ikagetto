@@ -345,6 +345,8 @@ export class HUDManager {
         color: #3de08a;
         text-shadow: 0 0 12px rgba(61, 224, 138, 0.65);
       }
+      .sonar-dist-big, .sonar-bearing { white-space: nowrap; }
+      .sonar-big-row { gap: 6px; }
       .sonar-bearing {
         font-size: 12px;
         font-weight: 800;
@@ -440,14 +442,41 @@ export class HUDManager {
         position: fixed;
         right: 10px;
         bottom: 10px;
-        width: 158px;
-        padding: 7px;
+        width: min(230px, calc(100vw - 170px));
+        padding: 8px;
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 7px;
         z-index: 26;
       }
-      .winch-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+      .winch-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+      .winch-pair.hidden, #btn-hook.hidden { display: none; }
+
+      /* Big, colour-coded winch buttons: green = reel in, blue = pay out.
+         Grey = cannot press now. Blinking = press this one now. */
+      #btn-reel-in, #btn-reel-out {
+        min-height: 78px;
+        padding: 8px 4px;
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.25;
+        border-radius: 12px;
+        color: #ffffff;
+      }
+      #btn-reel-in  { background: rgba(28, 128, 74, 0.95); border: 2px solid rgba(110, 240, 160, 0.75); }
+      #btn-reel-out { background: rgba(24, 92, 168, 0.95); border: 2px solid rgba(120, 200, 255, 0.75); }
+      #btn-reel-in.pressed  { background: rgba(46, 176, 104, 1); }
+      #btn-reel-out.pressed { background: rgba(40, 130, 220, 1); }
+      #btn-reel-in.dim, #btn-reel-out.dim { opacity: 0.45; }
+      #btn-reel-in.blink, #btn-reel-out.blink { animation: btnBlink 0.7s ease-in-out infinite; }
+      #btn-reel-in.blink  { --blink-glow: rgba(110, 255, 170, 0.95); }
+      #btn-reel-out.blink { --blink-glow: rgba(120, 210, 255, 0.95); }
+      @keyframes btnBlink {
+        0%, 100% { filter: brightness(1); box-shadow: 0 0 6px var(--blink-glow); transform: scale(1); }
+        50%      { filter: brightness(1.45); box-shadow: 0 0 22px var(--blink-glow), 0 0 40px var(--blink-glow); transform: scale(1.04); }
+      }
+      #btn-hook { min-height: 72px; font-size: 17px; font-weight: 900; border-radius: 12px; }
+      #btn-crane { display: none !important; }
       .ctrl-btn {
         background: rgba(14, 34, 58, 0.92);
         border: 1px solid rgba(92, 225, 255, 0.32);
@@ -484,7 +513,9 @@ export class HUDManager {
       #crane-timing-panel {
         position: fixed;
         left: 50%;
-        bottom: 162px;
+        /* Shown only while landing, when the stick and winch pad are hidden,
+           so it sits low and leaves the middle free for the "海面到達!!" callout. */
+        bottom: calc(24px + env(safe-area-inset-bottom, 0px));
         transform: translateX(-50%);
         width: min(360px, calc(100vw - 20px));
         padding: 12px 14px;
@@ -683,7 +714,7 @@ export class HUDManager {
       @media (max-width: 768px) {
         #hud-top-wrap { left: 50px; right: 6px; top: 6px; }
         #ship-keypad { width: 132px; left: 8px; bottom: 8px; padding: 7px 7px 9px; }
-        #action-pad { width: 152px; right: 8px; bottom: 8px; padding: 6px; }
+        #action-pad { right: 8px; bottom: 8px; padding: 7px; }
         #hud-sonar-panel { left: 8px; bottom: 162px; width: 204px; }
         .pip-label { top: 96px; right: 8px; }
         .ctrl-btn { font-size: 10.5px; padding: 7px 3px; }
@@ -848,9 +879,9 @@ export class HUDManager {
           <span>ウインチ・操作</span>
           <span id="action-depth-mini" style="color:#5ce1ff;">0 m</span>
         </div>
-        <div class="winch-pair">
-          <button type="button" class="ctrl-btn" data-hold="reelIn" id="btn-reel-in" disabled>↑ 巻上</button>
-          <button type="button" class="ctrl-btn" data-hold="reelOut" id="btn-reel-out" disabled>↓ 繰出/投下</button>
+        <div class="winch-pair" id="winch-pair">
+          <button type="button" class="ctrl-btn" data-hold="reelIn" id="btn-reel-in" disabled>↑<br>巻上</button>
+          <button type="button" class="ctrl-btn" data-hold="reelOut" id="btn-reel-out" disabled>↓<br>繰出/投下</button>
         </div>
         <button type="button" class="ctrl-btn hook-btn" id="btn-hook" disabled>フッキング (Space)</button>
         <button type="button" class="ctrl-btn crane-btn" id="btn-crane" disabled>クレーン (0/3)</button>
@@ -931,6 +962,7 @@ export class HUDManager {
     this.elRngLight = null;
     this.elValLight = null;
 
+    this.elWinchPair = document.getElementById('winch-pair');
     this.elBtnReelIn = document.getElementById('btn-reel-in');
     this.elBtnReelOut = document.getElementById('btn-reel-out');
     this.elBtnHook = document.getElementById('btn-hook');
@@ -1314,10 +1346,19 @@ export class HUDManager {
     const isActivePlay = !isHome && !isCapture && !isInspect && !isEnd;
 
     this.elHomeScreen.classList.toggle('hidden', !isHome);
-    this.elTopWrap.classList.toggle('hidden', isHome || isInspect || isEnd);
-    this.elShipKeypad.classList.toggle('hidden', !isActivePlay);
-    this.elActionPad.classList.toggle('hidden', !isActivePlay);
-    this.elSonarPanel.classList.toggle('hidden', !isActivePlay);
+    // Show only what the current step needs, so the 3D scene stays as large as possible.
+    //  SEARCH    : sonar + stick + winch buttons
+    //  LURE_HOOK : hook button only (stick / winch do nothing useful while waiting)
+    //  FIGHT     : stick + winch buttons + top meters
+    //  LANDING   : only the big crane panel in the middle
+    const ph = snap.phase;
+    const isLanding = ph === 'LANDING';
+    this.elTopWrap.classList.toggle('hidden', isHome || isInspect || isEnd || isCapture || isLanding);
+    this.elShipKeypad.classList.toggle('hidden', !(ph === 'SEARCH' || ph === 'FIGHT'));
+    this.elActionPad.classList.toggle('hidden', !(ph === 'SEARCH' || ph === 'LURE_HOOK' || ph === 'FIGHT'));
+    this.elWinchPair.classList.toggle('hidden', ph === 'LURE_HOOK');
+    this.elBtnHook.classList.toggle('hidden', ph !== 'LURE_HOOK');
+    this.elSonarPanel.classList.toggle('hidden', ph !== 'SEARCH');
     this.elCraneTimingPanel.classList.toggle('hidden', snap.phase !== 'LANDING');
     this.elInspectBar.classList.toggle('hidden', !isInspect);
 
@@ -1383,19 +1424,19 @@ export class HUDManager {
     this.elRovOverlay.classList.toggle('active', isROVMain && isActivePlay);
     this.elRovMeta.textContent = `水深 ${Math.round(snap.depth)} m`;
 
-    this.elPipLabel.classList.toggle('hidden', !this.panelState.pip || !isActivePlay);
+    this.elPipLabel.classList.toggle('hidden', !this.panelState.pip || !isActivePlay || isLanding);
     this.elPipLabel.textContent = isROVMain ? 'PiP: SURFACE ×' : 'PiP: DEEP ROV ×';
 
     // Upgraded Sonar: Large Distance + Bearing Arrow + Linear Line-Graph
     this._drawLinearSonar(snap, dt);
     const dM = Math.round(snap.hotspot.distance);
     const dropReady = snap.phase === 'SEARCH' && dM < 22;
-    this.elSonarDistBig.textContent = snap.phase === 'SEARCH' ? (dropReady ? `${dM} m OK!` : `${dM} m`) : `${Math.round(snap.depth)} m`;
+    this.elSonarDistBig.textContent = snap.phase === 'SEARCH' ? `${dM} m` : `${Math.round(snap.depth)} m`;
     this.elSonarDistBig.classList.toggle('ready', dropReady);
 
     const b = snap.hotspot.relBearing || 0;
     if (snap.phase === 'SEARCH') {
-      if (dropReady) this.elSonarBearing.textContent = '◎ 真上到達';
+      if (dropReady) this.elSonarBearing.textContent = '◎ 投下OK';
       else if (Math.abs(b) < 0.45) this.elSonarBearing.textContent = '▲ まっすぐ';
       else if (Math.abs(b) > 2.55) this.elSonarBearing.textContent = '▼ 後ろ方向';
       else if (b > 0) this.elSonarBearing.textContent = '▶ 右方向';
@@ -1436,14 +1477,14 @@ export class HUDManager {
     this.elBtnHook.disabled = !canHook;
     this.elBtnCrane.disabled = !canCrane;
 
-    this.elBtnReelIn.classList.remove('glow-cyan', 'glow-gold', 'glow-red');
-    this.elBtnReelOut.classList.remove('glow-cyan', 'glow-gold', 'glow-red');
+    this.elBtnReelIn.classList.remove('glow-cyan', 'glow-gold', 'glow-red', 'blink', 'dim');
+    this.elBtnReelOut.classList.remove('glow-cyan', 'glow-gold', 'glow-red', 'blink', 'dim');
     this.elBtnHook.classList.remove('glow-cyan', 'glow-gold', 'glow-red');
     this.elBtnCrane.classList.remove('glow-cyan', 'glow-gold', 'glow-red');
     this.elBtnCraneBig.classList.remove('glow-gold');
 
     if (snap.phase === 'SEARCH' && dM < 22 && snap.depth < 600) {
-      this.elBtnReelOut.classList.add('glow-cyan');
+      this.elBtnReelOut.classList.add('blink');
     }
 
     if (snap.phase === 'LURE_HOOK' && snap.squid.lureStage === 'WRAP') {
@@ -1454,8 +1495,14 @@ export class HUDManager {
     }
 
     if (snap.phase === 'FIGHT') {
-      if (snap.tension >= 85 || snap.winchTemp >= 100) this.elBtnReelOut.classList.add('glow-gold');
-      else if (snap.tension < 72 && snap.winchTemp < 92) this.elBtnReelIn.classList.add('glow-cyan');
+      if (snap.tension >= 85 || snap.winchTemp >= 100) {
+        // Danger: pay out line. Reel-in stays pressable but is dimmed.
+        this.elBtnReelOut.classList.add('blink');
+        this.elBtnReelIn.classList.add('dim');
+      } else if (snap.tension < 72 && snap.winchTemp < 92) {
+        this.elBtnReelIn.classList.add('blink');
+        this.elBtnReelOut.classList.add('dim');
+      }
     }
 
     // Large Dedicated Crane Timing Panel (Phase 5 LANDING)
