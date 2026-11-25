@@ -2,26 +2,52 @@ import { ResultFXManager } from '../ui/ResultFX.js';
 import * as THREE from 'three';
 import { ButcherStageModels } from '../models/ButcherModels.js';
 import { getCommentForScore } from '../data/SquidTiersAndComments.js';
+import { MiniGameCoach, drawGhostSwipe, drawGhostTap, drawGhostCircle } from '../ui/MiniGameCoach.js';
 
 // Each step specifies exact 3D camera focus (fx, fz) AND exact 3D world start/end points
 // so the on-screen glowing chevron guide aligns 1:1 with the anatomical part being cut!
 const BUTCHER_STEPS_15 = [
-  { id: 'wash',  title: '1. ぬめり取り・水洗い',       hint: '矢印の向きに3回こすって洗おう！',               type: 'rub',           count: 3, fx: -1.1, fz: 0.1, p0: [-1.8, 0.55, 0.1], p1: [-0.3, 0.55, 0.1], maxScore: 3000, se: 'wash' },
-  { id: 'fins',  title: '2. 左右ヒレの切り離し',       hint: 'ヒレ付け根の矢印に沿って切ろう！',             type: 'swipe_v',       fx: -1.9, fz: 0.1, p0: [-1.85, 0.55, -0.75], p1: [-1.85, 0.55, 0.95], maxScore: 3300, se: 'slice' },
-  { id: 'score', title: '3. 胴体の浅切りガイド',       hint: '中央ラインを左から右へスッと切ろう！',         type: 'swipe_r',       fx: -1.1, fz: 0.1, p0: [-2.1, 0.58, 0.1], p1: [0.0, 0.58, 0.1], maxScore: 3300, se: 'slice' },
-  { id: 'open',  title: '4. 外套膜の観音開き',         hint: '上下へ広げるようにスワイプして開こう！',       type: 'swipe_v',       fx: -1.1, fz: 0.1, p0: [-1.1, 0.58, -0.65], p1: [-1.1, 0.58, 0.85], maxScore: 3400, se: 'peel' },
-  { id: 'pen',   title: '5. 軟甲（ペン）の引き抜き',   hint: '折らないようゆっくり左へ引き抜いて！',         type: 'slow_swipe_l',  fx: -1.1, fz: 0.1, p0: [-0.2, 0.45, 0.1], p1: [-2.1, 0.45, 0.1], maxScore: 3500, se: 'pen' },
-  { id: 'gills', title: '6. エラ・胃袋の切り離し',     hint: '緑ゾーンでタイミングよくタップ！',             type: 'timing',        speed: 2.7, zone: 0.25, fx: -0.8, fz: 0.1, maxScore: 3300, se: 'slice' },
-  { id: 'liver', title: '7. 肝臓（ゴロ）の慎重分離',   hint: '潰さないようゆっくり右へスワイプ分離！',       type: 'slow_swipe_r',  fx: -1.1, fz: 0.1, p0: [-1.8, 0.48, 0.1], p1: [-0.2, 0.48, 0.1], maxScore: 3400, se: 'peel' },
-  { id: 'ink',   title: '8. 墨袋の超精密摘出（最難関）', hint: '狭い緑ゾーンで止めろ！外すと墨袋破裂！',     type: 'timing',        speed: 3.6, zone: 0.16, fx: -0.5, fz: 0.1, maxScore: 4200, se: 'ink' },
-  { id: 'neck',  title: '9. 頭部と胴体の切り離し',     hint: '首元の矢印を2回ザクッと切ろう！',               type: 'multi_swipe_v', count: 2, fx: 0.5, fz: 0.1, p0: [0.35, 0.55, -0.75], p1: [0.35, 0.55, 0.95], maxScore: 3300, se: 'chop' },
-  { id: 'eyes',  title: '10. 巨大眼球の摘出',          hint: '巨大眼の周りをグルッと円を描いて外そう！',     type: 'circle',        fx: 1.1, fz: 0.1, p0: [1.15, 0.55, 0.1], maxScore: 3300, se: 'pop' },
-  { id: 'beak',  title: '11. カラストンビ（嘴）抜き',  hint: '緑ゾーンでポンッと嘴を押し抜こう！',           type: 'timing',        speed: 3.1, zone: 0.21, fx: 1.4, fz: 0.1, maxScore: 3300, se: 'pop' },
-  { id: 'skin',  title: '12. 外套膜の赤皮剥ぎ',        hint: '勢いよく上へスワイプして皮を一気に剥ごう！',   type: 'fast_swipe_u',  fx: -1.1, fz: 0.1, p0: [-1.1, 0.45, 0.85], p1: [-1.1, 0.45, -0.75], maxScore: 3400, se: 'peel' },
-  { id: 'film',  title: '13. 内側薄皮の丁寧剥ぎ',      hint: '薄皮を左右に2回スッと剥がそう！',               type: 'rub',           count: 2, fx: -1.1, fz: 0.1, p0: [-1.8, 0.45, 0.1], p1: [-0.3, 0.45, 0.1], maxScore: 3200, se: 'peel' },
-  { id: 'arms',  title: '14. 8本腕（ゲソ）の切り分け', hint: '吸盤付きゲソの付け根を3回縦に切ろう！',        type: 'multi_swipe_v', count: 3, fx: 2.1, fz: 0.1, p0: [1.75, 0.45, -0.85], p1: [1.75, 0.45, 1.05], maxScore: 3100, se: 'chop' },
-  { id: 'tents', title: '15. 触腕＆掌部の切り離し',    hint: '最後の仕上げ！右へスパッと切り離そう！',       type: 'swipe_r',       fx: 2.3, fz: 0.1, p0: [1.5, 0.45, 0.1], p1: [3.1, 0.45, 0.1], maxScore: 3000, se: 'slice' }
+  { id: 'wash',  title: 'ぬめり取り・水洗い',     hint: '胴を左右に3回こすって洗う',             rule: 'count',  type: 'rub',           count: 3, coach: 'intro',  fx: -1.1, fz: 0.1, p0: [-1.8, 0.55, 0.1], p1: [-0.3, 0.55, 0.1], maxScore: 3000, se: 'wash' },
+  { id: 'fins',  title: '左右ヒレの切り離し',     hint: 'ヒレの付け根を、矢印の向きになぞる',                     type: 'swipe_v',       fx: -1.9, fz: 0.1, p0: [-1.85, 0.55, -0.75], p1: [-1.85, 0.55, 0.95], maxScore: 3300, se: 'slice' },
+  { id: 'score', title: '胴体の浅切り',           hint: '胴のまん中を、左から右へなぞる',                         type: 'swipe_r',       fx: -1.1, fz: 0.1, p0: [-2.1, 0.58, 0.1], p1: [0.0, 0.58, 0.1], maxScore: 3300, se: 'slice' },
+  { id: 'open',  title: '外套膜の観音開き',       hint: '胴を縦になぞって、左右に開く',                           type: 'swipe_v',       fx: -1.1, fz: 0.1, p0: [-1.1, 0.58, -0.65], p1: [-1.1, 0.58, 0.85], maxScore: 3400, se: 'peel' },
+  { id: 'pen',   title: '軟甲（ペン）の引き抜き', hint: 'ペンを、右から左へゆっくり引き抜く',   rule: 'ゆっくり', ruleWarn: true, type: 'slow_swipe_l', coach: 'slow', fx: -1.1, fz: 0.1, p0: [-0.2, 0.45, 0.1], p1: [-2.1, 0.45, 0.1], maxScore: 3500, se: 'pen' },
+  { id: 'gills', title: 'エラ・胃袋の切り離し',   hint: '黄色の棒が緑に重なったらタップ',       rule: 'タイミング', ruleWarn: true, type: 'timing', coach: 'timing', speed: 2.7, zone: 0.25, fx: -0.8, fz: 0.1, maxScore: 3300, se: 'slice' },
+  { id: 'liver', title: '肝臓（ゴロ）の分離',     hint: '肝臓を、左から右へゆっくりはがす',     rule: 'ゆっくり', ruleWarn: true, type: 'slow_swipe_r', fx: -1.1, fz: 0.1, p0: [-1.8, 0.48, 0.1], p1: [-0.2, 0.48, 0.1], maxScore: 3400, se: 'peel' },
+  { id: 'ink',   title: '墨袋の摘出（最難関）',   hint: '緑がせまい。重なった瞬間にタップ',     rule: 'タイミング', ruleWarn: true, type: 'timing', speed: 3.6, zone: 0.16, fx: -0.5, fz: 0.1, maxScore: 4200, se: 'ink' },
+  { id: 'neck',  title: '頭部と胴体の切り離し',   hint: '首元を、縦に2回なぞって切る',          rule: 'count',  type: 'multi_swipe_v', count: 2, fx: 0.5, fz: 0.1, p0: [0.35, 0.55, -0.75], p1: [0.35, 0.55, 0.95], maxScore: 3300, se: 'chop' },
+  { id: 'eyes',  title: '巨大眼球の摘出',         hint: '目のまわりを、ぐるっと円になぞる',                       type: 'circle',        fx: 1.1, fz: 0.1, p0: [1.15, 0.55, 0.1], maxScore: 3300, se: 'pop' },
+  { id: 'beak',  title: 'カラストンビ（嘴）抜き', hint: '黄色の棒が緑に重なったらタップ',       rule: 'タイミング', ruleWarn: true, type: 'timing', speed: 3.1, zone: 0.21, fx: 1.4, fz: 0.1, maxScore: 3300, se: 'pop' },
+  { id: 'skin',  title: '外套膜の赤皮むき',       hint: '皮を、下から上へ一気にむく',           rule: 'すばやく', ruleWarn: true, type: 'fast_swipe_u', coach: 'fast', fx: -1.1, fz: 0.1, p0: [-1.1, 0.45, 0.85], p1: [-1.1, 0.45, -0.75], maxScore: 3400, se: 'peel' },
+  { id: 'film',  title: '内側の薄皮むき',         hint: '薄皮を、左右に2回こすってはがす',      rule: 'count',  type: 'rub',           count: 2, fx: -1.1, fz: 0.1, p0: [-1.8, 0.45, 0.1], p1: [-0.3, 0.45, 0.1], maxScore: 3200, se: 'peel' },
+  { id: 'arms',  title: '8本腕（ゲソ）の切り分け', hint: 'ゲソの付け根を、縦に3回なぞって切る', rule: 'count',  type: 'multi_swipe_v', count: 3, fx: 2.1, fz: 0.1, p0: [1.75, 0.45, -0.85], p1: [1.75, 0.45, 1.05], maxScore: 3100, se: 'chop' },
+  { id: 'tents', title: '触腕の切り離し',         hint: '最後の工程。左から右へなぞって切る',                     type: 'swipe_r',       fx: 2.3, fz: 0.1, p0: [1.5, 0.45, 0.1], p1: [3.1, 0.45, 0.1], maxScore: 3000, se: 'slice' }
 ];
+
+// Pause cards are used only where a hidden rule (speed / timing) would otherwise
+// make a first-time player fail. Plain swipes are taught by the ghost finger.
+const BUTCHER_COACH_CARDS = {
+  intro: {
+    id: 'intro', demo: 'swipe',
+    title: '光る線を、矢印の向きになぞろう',
+    html: '赤い丸がスタート地点です。指を置いたまま、矢印の向きに動かします。<br>いまやることは、いつも画面の上に出ます。'
+  },
+  slow: {
+    id: 'slow', demo: 'slow',
+    title: 'この工程は「ゆっくり」なぞる',
+    html: '速く動かすと、ペンが途中で折れてしまいます。<b>1秒くらい</b>かけて引き抜こう。'
+  },
+  timing: {
+    id: 'timing', demo: 'timing',
+    title: '黄色の棒が緑に重なったらタップ',
+    html: '画面のどこをタップしても大丈夫です。時間制限はないので、棒の動きを何回か見てから押しましょう。'
+  },
+  fast: {
+    id: 'fast', demo: 'fast',
+    title: 'この工程は「すばやく」なぞる',
+    html: 'ゆっくりだと、皮が途中でちぎれます。下から上へ、<b>一気に</b>なぞろう。'
+  }
+};
 
 export class ButcherGame {
   constructor(rootContainer, audio, callbacks = {}, resultFX = null) {
@@ -63,7 +89,11 @@ export class ButcherGame {
     this._projA = new THREE.Vector3();
     this._projB = new THREE.Vector3();
 
+    this.touchedThisStep = false;
+    this.stepIdle = 0;
+
     this._buildUI();
+    this.coach = new MiniGameCoach(rootContainer, 'butcher');
   }
 
   _buildUI() {
@@ -138,7 +168,10 @@ export class ButcherGame {
       <canvas class="mg-gesture-canvas" id="butcher-guide-canvas"></canvas>
       <div class="mg-top-card" id="butcher-top">
         <div class="mg-step-badge" id="butcher-step-title">解体工程 1 / 15</div>
-        <div class="mg-hint-text" id="butcher-hint">ガイドにそって操作しよう！</div>
+        <div class="mg-hint-row">
+          <span class="mg-rule-chip hidden" id="butcher-rule"></span>
+          <div class="mg-hint-text" id="butcher-hint">光る線にそってなぞろう</div>
+        </div>
         <div class="mg-prog-bar"><div class="mg-prog-fill" id="butcher-prog"></div></div>
       </div>
       <div class="mg-feedback" id="butcher-feedback">PERFECT!</div>
@@ -167,6 +200,7 @@ export class ButcherGame {
     this.elTop = this.el.querySelector('#butcher-top');
     this.elStepTitle = this.el.querySelector('#butcher-step-title');
     this.elHint = this.el.querySelector('#butcher-hint');
+    this.elRule = this.el.querySelector('#butcher-rule');
     this.elProg = this.el.querySelector('#butcher-prog');
     this.elFeedback = this.el.querySelector('#butcher-feedback');
     this.elResScreen = this.el.querySelector('#butcher-res-screen');
@@ -192,10 +226,12 @@ export class ButcherGame {
     };
 
     this.guideCanvas.addEventListener('pointerdown', (e) => {
-      if (!this.active || this.mode !== 'PLAY') return;
+      if (!this.active || this.mode !== 'PLAY' || this.coach.isBlocking()) return;
       e.preventDefault();
       const pt = toNorm(e);
       this.pointerDown = true;
+      this.touchedThisStep = true;
+      this.stepIdle = 0;
       this.dragStart = { x: pt.x, y: pt.y, t: performance.now() };
       this.dragCurrent = pt;
       this.circleSweep = 0;
@@ -264,7 +300,7 @@ export class ButcherGame {
         this.models.knifeSwing = 0.8;
         this.subCount++;
         if (this.subCount >= step.count) this._finishStep(true, Math.round(step.maxScore * 0.96), 'ツルツルに綺麗になった！');
-        else this.elHint.textContent = `あと ${step.count - this.subCount} 回こすろう！`;
+        else this._refreshRuleChip();
       }
     } else if (step.type === 'multi_swipe_v') {
       if (Math.abs(dy) > 0.13) {
@@ -273,7 +309,7 @@ export class ButcherGame {
         this.models.burstParticles(step.fx, step.fz, 0xffe8e4, 20);
         this.subCount++;
         if (this.subCount >= step.count) this._finishStep(true, Math.round(step.maxScore * 0.95), 'リズミカルに綺麗に切断！');
-        else this.elHint.textContent = `あと ${step.count - this.subCount} 回ザクッと切ろう！`;
+        else this._refreshRuleChip();
       }
     } else if (step.type === 'swipe_v') {
       const ok = Math.abs(dy) > 0.15;
@@ -321,10 +357,26 @@ export class ButcherGame {
     }
   }
 
+  _refreshRuleChip() {
+    const step = BUTCHER_STEPS_15[this.stepIdx];
+    if (!step || !step.rule) {
+      this.elRule.classList.add('hidden');
+      return;
+    }
+    this.elRule.textContent = step.rule === 'count' ? `あと ${step.count - this.subCount} 回` : step.rule;
+    this.elRule.classList.toggle('warn', !!step.ruleWarn);
+    this.elRule.classList.remove('hidden');
+  }
+
   _refreshStepUI() {
     const step = BUTCHER_STEPS_15[this.stepIdx];
-    this.elStepTitle.textContent = `解体工程 ${this.stepIdx + 1} / ${BUTCHER_STEPS_15.length} — ${step.title}`;
+    this.elStepTitle.textContent = `解体 ${this.stepIdx + 1} / ${BUTCHER_STEPS_15.length} ・ ${step.title}`;
     this.elHint.textContent = step.hint;
+    this._refreshRuleChip();
+    this.touchedThisStep = false;
+    this.stepIdle = 0;
+    // Wait for the previous step's result message to fade before explaining a new rule.
+    if (step.coach) this.coach.request(BUTCHER_COACH_CARDS[step.coach], this.stepIdx === 0 ? 0.6 : 1.05);
     this.elProg.style.width = `${(this.stepIdx / BUTCHER_STEPS_15.length) * 100}%`;
     this.camDesiredTarget.set(step.fx, 0.25, step.fz);
     this.toolWorldX = step.fx;
@@ -333,6 +385,8 @@ export class ButcherGame {
 
   _enterResult() {
     this.mode = 'RESULT';
+    this.coach.cancel();
+    this.coach.markDone();
     const rank = this.totalScore >= 45000 ? 'S+' : this.totalScore >= 37500 ? 'S' : this.totalScore >= 27500 ? 'A' : this.totalScore >= 17500 ? 'B' : 'C';
     this.audio?.playResultJingle(rank);
     this.models.arrangeForResult(this.stepResults);
@@ -367,6 +421,8 @@ export class ButcherGame {
 
   hide() {
     this.active = false;
+    this.pointerDown = false;
+    this.coach.cancel();
     this.el.classList.add('hidden');
     this.resultFX?.stop();
   }
@@ -406,7 +462,7 @@ export class ButcherGame {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 15px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('▼ 緑ゾーンで画面をタップ！ ▼', w * 0.5, by - 14);
+      ctx.fillText('▼ 緑に重なったらタップ ▼', w * 0.5, by - 14);
     } else if (step.type === 'circle' && step.p0) {
       const c = this._projectToScreen(step.p0, w, h, this._projA);
       const rad = Math.min(w, h) * 0.16;
@@ -469,6 +525,10 @@ export class ButcherGame {
       }
     }
 
+    if (this.coach.shouldShowGhost(this.touchedThisStep, this.stepIdle, this.pointerDown)) {
+      this._drawGhost(ctx, step, w, h);
+    }
+
     if (this.pointerDown) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
       ctx.lineWidth = 5;
@@ -479,13 +539,33 @@ export class ButcherGame {
     }
   }
 
+  _drawGhost(ctx, step, w, h) {
+    const t = this.time;
+    if (step.type === 'timing') {
+      const inZone = Math.abs(0.44 * Math.sin(this.cursorPhase)) <= step.zone * 0.5;
+      drawGhostTap(ctx, { x: w * 0.5, y: h * 0.74 + 62 }, t, inZone);
+    } else if (step.type === 'circle' && step.p0) {
+      const c = this._projectToScreen(step.p0, w, h, this._projA);
+      drawGhostCircle(ctx, c, Math.min(w, h) * 0.16, t);
+    } else if (step.p0 && step.p1) {
+      const a = this._projectToScreen(step.p0, w, h, this._projA);
+      const b = this._projectToScreen(step.p1, w, h, this._projB);
+      const speed = step.type.startsWith('slow') ? 0.8 : (step.type === 'fast_swipe_u' ? 1.8 : 1);
+      drawGhostSwipe(ctx, { x: a.x, y: a.y }, { x: b.x, y: b.y }, t, speed);
+    }
+  }
+
   render(renderer, width, height, dt) {
     if (!this.active) return;
     const safeDt = Math.min(0.05, dt);
     this.time += safeDt;
 
     const step = BUTCHER_STEPS_15[Math.min(this.stepIdx, BUTCHER_STEPS_15.length - 1)];
-    this.cursorPhase += safeDt * (step.speed || 2.5);
+    // Hold the timing cursor still while a guide card is up so nothing moves behind it.
+    if (!this.coach.isBlocking()) {
+      this.cursorPhase += safeDt * (step.speed || 2.5);
+      if (this.mode === 'PLAY' && !this.pointerDown) this.stepIdle += safeDt;
+    }
 
     if (this.feedbackTimer > 0) {
       this.feedbackTimer -= safeDt;

@@ -187,6 +187,11 @@ export class HUDManager {
       }
       .home-play-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(34, 184, 226, 0.58); }
       .home-play-btn:active { transform: scale(0.98); }
+      .home-guide-link {
+        margin-top: 12px; background: transparent; border: none; color: #8cc8ec;
+        font-size: 12px; font-weight: 700; text-decoration: underline; cursor: pointer; font-family: inherit;
+      }
+      .home-guide-link.hidden { display: none; }
 
       /* Top Stack: Toolbar + Guide + Hookup/Fight Instruments */
       #hud-top-wrap {
@@ -722,6 +727,7 @@ export class HUDManager {
           </div>
 
           <button type="button" id="btn-home-play" class="home-play-btn">出港する（PLAY）</button>
+          <button type="button" id="btn-home-guide" class="home-guide-link hidden">はじめてガイドを、もう一度見る</button>
         </div>
       </div>
 
@@ -876,6 +882,7 @@ export class HUDManager {
     // Cache DOM refs
     this.elHomeScreen = document.getElementById('home-screen');
     this.elBtnHomePlay = document.getElementById('btn-home-play');
+    this.elBtnHomeGuide = document.getElementById('btn-home-guide');
     this.elTopWrap = document.getElementById('hud-top-wrap');
     this.elShipKeypad = document.getElementById('ship-keypad');
     this.elActionPad = document.getElementById('action-pad');
@@ -963,6 +970,12 @@ export class HUDManager {
     this.calloutTimer = duration;
   }
 
+  setGuideReplayVisible(visible) {
+    this.elBtnHomeGuide.classList.toggle('hidden', !visible);
+    this.elBtnHomeGuide.disabled = false;
+    this.elBtnHomeGuide.textContent = 'はじめてガイドを、もう一度見る';
+  }
+
   _applyPanelVisibility() {
     this.elSonarPanel.classList.toggle('collapsed', !this.panelState.sonar);
     this.elTopGauges.classList.toggle('collapsed', !this.panelState.gauges);
@@ -987,7 +1000,14 @@ export class HUDManager {
       if (this.callbacks.onStartGame) this.callbacks.onStartGame();
     });
 
-    // Inspection buttons
+    // Replay first-play guides
+    this.elBtnHomeGuide.addEventListener('click', () => {
+      if (this.callbacks.onResetGuides) this.callbacks.onResetGuides();
+      this.elBtnHomeGuide.textContent = '次のプレイから、ガイドをもう一度表示します';
+      this.elBtnHomeGuide.disabled = true;
+    });
+
+        // Inspection buttons
     this.elBtnShowResult.addEventListener('click', () => {
       if (this.callbacks.onOpenResult) this.callbacks.onOpenResult();
     });
