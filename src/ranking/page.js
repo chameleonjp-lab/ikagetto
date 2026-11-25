@@ -55,6 +55,15 @@ function render() {
       cell.textContent = value;
       cell.dir = 'auto';
     }
+    if (record.metrics) {
+      const { length_meters, weight_kg, elapsed_ms } = record.metrics;
+      const details = document.createElement('span');
+      details.className = 'catch-metrics';
+      details.textContent = rankText('fishingMetrics', {
+        length: length_meters, weight: weight_kg, time: Math.round(elapsed_ms / 100) / 10,
+      });
+      row.cells[1].append(details);
+    }
     return row;
   });
   $('board-rows').replaceChildren(...rows);

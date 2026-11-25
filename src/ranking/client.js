@@ -89,12 +89,17 @@ export async function getRankingStats() {
 
 export async function getRankingBoard(mode, limit = 30) {
   if (!modes.has(mode)) throw new TypeError('Invalid game mode');
-  const rows = await rpc('ikagetto_board_v1', { p_mode: mode, p_limit: limit });
+  const rows = mode === 'fishing'
+    ? await rpc('ikagetto_fishing_board_v2', { p_limit: limit })
+    : await rpc('ikagetto_board_v1', { p_mode: mode, p_limit: limit });
   if (!Array.isArray(rows)) throw new Error('Invalid ranking board');
   return rows.map(row => ({
     rank: count(row.rank),
     display_name: String(row.display_name),
     score: count(row.score),
+    metrics: mode === 'fishing' && validMetrics(row) ? {
+      length_meters: row.length_meters, weight_kg: row.weight_kg, elapsed_ms: row.elapsed_ms,
+    } : null,
   }));
 }
 
@@ -121,7 +126,8 @@ function restoreQueue() {
           modes.has(job.run?.mode) && validName(job.run.name) &&
           /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/u.test(job.run.id) &&
           key === queuePrefix + job.operation + ':' + job.run.id &&
-          (job.operation === 'start' || validScore(job.score))) {
+          (job.operation === 'start' || (validScore(job.score) &&
+            (job.metrics == null || (job.run.mode === 'fishing' && validMetrics(job.metrics)))))) {
           queue.set(key, job);
         }
       } catch { /* Ignore only this damaged item. */ }
@@ -131,6 +137,12 @@ function restoreQueue() {
 
 function validScore(score) {
   return Number.isInteger(score) && score >= 0 && score <= 50000;
+}
+
+function validMetrics({ length_meters, weight_kg, elapsed_ms }) {
+  return Number.isInteger(length_meters) && length_meters >= 1 && length_meters <= 30 &&
+    Number.isInteger(weight_kg) && weight_kg >= 1 && weight_kg <= 10000 &&
+    Number.isInteger(elapsed_ms) && elapsed_ms >= 0 && elapsed_ms <= 2147483647;
 }
 
 function sendStart(run) {
@@ -160,10 +172,15 @@ function sync(key) {
         await sync(startKey);
         if (queue.has(startKey)) return null;
       }
-      const row = firstRow(await rpc('ikagetto_finish_v1', {
-        p_run_id: run.id,
-        p_score: job.score,
-      }));
+      const payload = { p_run_id: run.id, p_score: job.score };
+      const row = firstRow(job.metrics
+        ? await rpc('ikagetto_fishing_finish_v2', {
+          ...payload,
+          p_length_meters: job.metrics.length_meters,
+          p_weight_kg: job.metrics.weight_kg,
+          p_elapsed_ms: job.metrics.elapsed_ms,
+        })
+        : await rpc('ikagetto_finish_v1', payload));
       return { rank: row.rank == null ? null : count(row.rank), play_count: count(row.play_count) };
     } catch (error) {
       if (error.permanent) remove(key);
@@ -202,15 +219,21 @@ export function startRankingRun(mode, name = getPlayerName()) {
   return run;
 }
 
-export function finishRankingRun(run, score) {
+export function finishRankingRun(run, score, catchResult) {
   if (!run || !validScore(score)) return Promise.resolve(null);
+  const metrics = run.mode === 'fishing' ? {
+    length_meters: catchResult?.lengthMeters,
+    weight_kg: catchResult?.weightKg,
+    elapsed_ms: Math.round(catchResult?.elapsedTime * 1000),
+  } : null;
+  if (metrics && !validMetrics(metrics)) return Promise.resolve(null);
   const existing = runResults.get(run);
-  if (existing?.score === score && existing.finished) return Promise.resolve(existing.finished);
   if (existing && existing.score !== score) return Promise.resolve(null);
+  if (existing?.finished) return Promise.resolve(existing.finished);
 
-  const key = remember({ operation: 'finish', run, score });
-  const state = existing || { score, finished: null };
+  const state = existing || { score, metrics, finished: null };
   runResults.set(run, state);
+  const key = remember({ operation: 'finish', run, score, metrics: state.metrics });
   return sync(key).then(result => {
     if (result) state.finished = result;
     return result;

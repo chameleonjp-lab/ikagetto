@@ -54,3 +54,10 @@ th { color: #afc8db; }
 td:first-child { width: 15%; color: #9fdff1; font-variant-numeric: tabular-nums; }
 th:last-child, td:last-child { width: 26%; text-align: right; font-variant-numeric: tabular-nums; }
 td:nth-child(2) { overflow-wrap: anywhere; }
+.catch-metrics {
+  display: block;
+  color: #b8cee0;
+  margin-top: 4px;
+  font-size: .8rem;
+  line-height: 1.4;
+}

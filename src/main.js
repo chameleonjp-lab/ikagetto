@@ -258,7 +258,7 @@ function startFishing() {
 
 function recordFishingResult(result) {
   if (result?.success && fishingRun && !fishingRanking) {
-    fishingRanking = finishRankingRun(fishingRun, result.score);
+    fishingRanking = finishRankingRun(fishingRun, result.score, result);
   }
   return fishingRanking;
 }
