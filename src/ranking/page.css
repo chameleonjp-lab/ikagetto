@@ -16,7 +16,7 @@ body { margin: 0; }
 h1 { margin: 14px 0 18px; font-size: clamp(22px, 6vw, 34px); line-height: 1.18; overflow-wrap: anywhere; }
 h1 span { display: block; margin-top: 5px; color: #b3cedd; font-size: .64em; }
 button, select { font: inherit; color: inherit; cursor: pointer; }
-select, .retry {
+select, .retry, .board-pagination button, .detail-link {
   font-size: 16px;
   min-height: 44px;
   border: 1px solid #315578;
@@ -45,7 +45,7 @@ dd { margin: 5px 0 0; font-size: 1.4rem; font-weight: 700; font-variant-numeric:
 }
 [role=tab][aria-selected=true] { background: #91e5fa; color: #07121e; border-color: #91e5fa; font-weight: 750; }
 :focus-visible { outline: 2px solid #ffd176; outline-offset: 2px; }
-#ranking-panel { min-height: 140px; }
+#ranking-panel { min-height: 140px; scroll-margin-block-start: 12px; }
 .status { color: #b8cee0; padding: 12px 0; }
 .status:empty { display: none; }
 table { border-collapse: collapse; width: 100%; background: #0b1725; }
@@ -61,3 +61,26 @@ td:nth-child(2) { overflow-wrap: anywhere; }
   font-size: .8rem;
   line-height: 1.4;
 }
+.board-pagination {
+  margin: 12px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: #b8cee0;
+  text-align: center;
+}
+.board-pagination[hidden] { display: none; }
+.board-pagination button, .detail-link { overflow-wrap: anywhere; }
+.board-pagination button:disabled { color: #8095a8; cursor: default; }
+.detail-link {
+  display: grid;
+  place-items: center;
+  margin-top: 16px;
+  padding: 10px 14px;
+  color: #b3edfc;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 700;
+}
+.detail-link:hover, .board-pagination button:not(:disabled):hover { background: #17324a; }

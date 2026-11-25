@@ -92,6 +92,21 @@ export async function getRankingBoard(mode, limit = 30) {
   const rows = mode === 'fishing'
     ? await rpc('ikagetto_fishing_board_v2', { p_limit: limit })
     : await rpc('ikagetto_board_v1', { p_mode: mode, p_limit: limit });
+  return boardRecords(mode, rows);
+}
+
+export async function getRankingBoardPage(mode, offset, limit) {
+  if (!modes.has(mode)) throw new TypeError('Invalid game mode');
+  const rows = await rpc('ikagetto_board_page_v3', {
+    p_mode: mode,
+    p_offset: offset,
+    p_limit: limit,
+  });
+  const records = boardRecords(mode, rows);
+  return { records, hasMore: rows[0]?.has_more === true };
+}
+
+function boardRecords(mode, rows) {
   if (!Array.isArray(rows)) throw new Error('Invalid ranking board');
   return rows.map(row => ({
     rank: count(row.rank),
