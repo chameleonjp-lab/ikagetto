@@ -7,6 +7,7 @@ import { CookingStageModels } from '../models/CookingModels.js';
 import { getCommentForScore } from '../data/SquidTiersAndComments.js';
 import { MiniGameCoach, GuideStore, drawGhostSwipe, drawGhostTap, drawGhostHold, drawGhostShuttle, drawGhostCircle } from '../ui/MiniGameCoach.js';
 import { adaptText } from '../ui/DeviceProfile.js';
+import { SlashFX, drawOutlinedText, labelPx, setGameFont } from '../ui/SlashFX.js';
 
 const COOK_STEPS_10 = [
   { id: 'score_arm', title: 'イカ足の隠し包丁',             hint: 'イカ足を、ななめに2回なぞる',            rule: 'count', type: 'multi_cut',   count: 2, coach: 'intro', maxScore: 4500 },
@@ -90,8 +91,13 @@ export class AjilloCookingGame {
     this.heatDial = 0.48;
     this.heatGoodTime = 0;
     this.heatElapsed = 0;
+    this.heatFingerX = 0.48;
+    this.heatTarget = 0.1;
+    this.heatTargetLow = true;
+    this.heatGustTimer = 0;
     this.tossProgress = 0;
     this.panShakeX = 0;
+    this.fx = new SlashFX();
     this.millSweep = 0;
     this.lastAngle = null;
     this.seCooldown = 0;
@@ -177,6 +183,7 @@ export class AjilloCookingGame {
       this.dragStart = pt;
       this.dragCurrent = pt;
       this.trail = [pt];
+      this.heatFingerX = pt.x;
       this.lastAngle = Math.atan2(pt.y - 0.50, pt.x - 0.50);
 
       const step = COOK_STEPS_10[this.stepIdx];
@@ -209,7 +216,7 @@ export class AjilloCookingGame {
       if (step.type === 'multi_cut' || step.type === 'slice_arm') {
         this.models.knifeTargetX = (pt.x - 0.5) * 3.4;
       } else if (step.type === 'heat_keep') {
-        this.heatDial = Math.max(0.05, Math.min(1.0, pt.x));
+        this.heatFingerX = pt.x;
       } else if (step.type === 'toss_cook') {
         const dx = pt.x - this.dragCurrent.x;
         this.panShakeX = (pt.x - 0.5) * 2.2;
@@ -250,6 +257,8 @@ export class AjilloCookingGame {
       if (step.type === 'multi_cut' || step.type === 'slice_arm') {
         if (Math.hypot(dx, dy) > 0.10) {
           this.audio?.playChop();
+          const cw = this.guideCanvas.width, ch = this.guideCanvas.height;
+          this.fx.addSlash(this.dragStart.x * cw, this.dragStart.y * ch, this.dragCurrent.x * cw, this.dragCurrent.y * ch);
           if (step.type === 'slice_arm') {
             this.models.triggerSliceCut(this.subCount);
           } else if (step.id === 'score_arm') {
@@ -318,6 +327,9 @@ export class AjilloCookingGame {
     this.heatDial = 0.48;
     this.heatGoodTime = 0;
     this.heatElapsed = 0;
+    this.heatFingerX = 0.48;
+    this.heatTargetLow = Math.random() < 0.5;
+    this.heatGustTimer = 0;
     this.tossProgress = 0;
     this.millSweep = 0;
     this.trail = [];
@@ -374,6 +386,7 @@ export class AjilloCookingGame {
 
   start(playerName = '') {
     this.active = true;
+    this.fx.clear();
     this.mode = 'PLAY';
     this.rankingPlayerName = playerName;
     this.rankingRun = startRankingRun('cooking', playerName);
@@ -444,21 +457,27 @@ export class AjilloCookingGame {
     }
 
     if (label) {
-      const mx = (x1 + x2) * 0.5;
+      let mx = (x1 + x2) * 0.5;
       const my = Math.min(y1, y2) - 24;
-      ctx.font = 'bold 14px sans-serif';
-      const tw = ctx.measureText(label).width + 24;
-      ctx.fillStyle = 'rgba(8, 16, 30, 0.88)';
-      ctx.beginPath(); ctx.roundRect(mx - tw * 0.5, my - 14, tw, 28, 14); ctx.fill();
+      const px = labelPx(this.guideCanvas.width);
+      setGameFont(ctx, px);
+      const cw = this.guideCanvas.width;
+      const tw = Math.min(cw - 12, ctx.measureText(label).width + 26);
+      const th = px + 16;
+      // Keep the whole label on screen even when the track starts near an edge.
+      mx = Math.max(tw * 0.5 + 6, Math.min(cw - tw * 0.5 - 6, mx));
+      ctx.fillStyle = 'rgba(8, 16, 30, 0.9)';
+      ctx.beginPath(); ctx.roundRect(mx - tw * 0.5, my - th * 0.5, tw, th, th * 0.5); ctx.fill();
       ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 1.6; ctx.stroke();
       ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(label, mx, my);
+      ctx.fillText(label, mx, my, tw - 20);
     }
     ctx.restore();
   }
 
   _drawGuide2D(w, h) {
     this._drawGuideBody(w, h);
+    this.fx.draw(this.gCtx, this._lastDt || 0.016);
     if (this.mode !== 'PLAY' || this.stepIdx >= COOK_STEPS_10.length) return;
     if (this.coach.shouldShowGhost(this.touchedThisStep, this.stepIdle, this.pointerDown)) {
       this._drawGhost(this.gCtx, COOK_STEPS_10[this.stepIdx], w, h);
@@ -507,8 +526,10 @@ export class AjilloCookingGame {
     const step = COOK_STEPS_10[this.stepIdx];
     const pulse = 0.55 + 0.45 * Math.sin(this.time * 7.0);
 
-    // Live glowing swipe trail
-    if (this.trail.length > 1) {
+    // Live swipe trail: a blade streak on cutting steps, a soft yellow line otherwise.
+    if (this.trail.length > 1 && (step.type === 'multi_cut' || step.type === 'slice_arm')) {
+      this.fx.drawBladeTrail(ctx, this.trail.slice(-14).map((p) => ({ x: p.x * w, y: p.y * h })));
+    } else if (this.trail.length > 1) {
       ctx.strokeStyle = 'rgba(255, 224, 102, 0.92)';
       ctx.lineWidth = 6;
       ctx.lineCap = 'round';
@@ -547,14 +568,7 @@ export class AjilloCookingGame {
       ctx.arc(center.x, center.y, 34 + pulse * 14, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.fillStyle = 'rgba(8, 16, 30, 0.88)';
-      ctx.beginPath(); ctx.roundRect(center.x - 86, center.y - 68, 172, 30, 15); ctx.fill();
-      ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 1.6; ctx.stroke();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(adaptText(t('タップ！（あと{0}回）', step.count - this.subCount)), center.x, center.y - 53, 156);
+      drawOutlinedText(ctx, adaptText(t('タップ！（あと{0}回）', step.count - this.subCount)), center.x, center.y - 62, { size: labelPx(w), baseline: 'middle', maxWidth: w - 24 });
     } else if (step.type === 'swipe_up') {
       this._drawChevronTrack(ctx, w * 0.5, h * 0.76, w * 0.5, h * 0.38, t('上へ一気になぞる'));
     } else if (step.type === 'hold_fill' || step.type === 'toss_cook') {
@@ -566,11 +580,7 @@ export class AjilloCookingGame {
         this._drawChevronTrack(ctx, dir ? pL.x : pR.x, pL.y, dir ? pR.x : pL.x, pR.y, t('左右に動かして混ぜる'));
       } else if (!this.pointerDown) {
         const pOil = this._project3D(0.5, 0.5, 0, w, h);
-        ctx.fillStyle = 'rgba(8, 16, 30, 0.88)';
-        ctx.beginPath(); ctx.roundRect(pOil.x - 95, pOil.y - 20, 190, 34, 17); ctx.fill();
-        ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 1.8; ctx.stroke();
-        ctx.fillStyle = '#ffe066'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(t('画面を長押しして注ぐ'), pOil.x, pOil.y - 3, 174);
+        drawOutlinedText(ctx, adaptText(t('画面を長押しして注ぐ')), pOil.x, pOil.y - 3, { size: labelPx(w), color: '#ffe066', baseline: 'middle', maxWidth: w - 24 });
       }
 
       const bw = Math.min(320, w * 0.80), bh = 30;
@@ -596,14 +606,12 @@ export class AjilloCookingGame {
       ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 8); ctx.stroke();
 
       // Crisp Japanese status label above gauge
-      ctx.fillStyle = inZone ? '#3de08a' : (val > maxOk ? '#ff6b6b' : '#ffffff');
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
+      const statusColor = inZone ? '#3de08a' : (val > maxOk ? '#ff6b6b' : '#ffffff');
       const statusText = inZone
         ? '★ 今だ！指をはなそう ★'
         : (val > maxOk ? (step.type === 'hold_fill' ? '入れすぎ！溢れる！' : '焼きすぎ！焦げる！')
           : (step.type === 'hold_fill' ? '長押しで注ぐ → 緑で指をはなす' : '左右に動かして加熱 → 緑で指をはなす'));
-      ctx.fillText(adaptText(t(statusText)), w * 0.5, by - 12, w - 20);
+      drawOutlinedText(ctx, adaptText(t(statusText)), w * 0.5, by - 12, { size: labelPx(w), color: statusColor, maxWidth: w - 20 });
     } else if (step.type === 'heat_keep') {
       const bw = Math.min(320, w * 0.80), bh = 30;
       const bx = (w - bw) * 0.5, by = h * 0.76;
@@ -621,10 +629,7 @@ export class AjilloCookingGame {
       ctx.arc(bx + this.heatDial * bw, by + bh * 0.5, 15, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(t('弱火キープ：{0}%', Math.min(100, Math.round((this.heatGoodTime / 2.4) * 100))), w * 0.5, by - 12, w - 20);
+      drawOutlinedText(ctx, t('弱火キープ：{0}%', Math.min(100, Math.round((this.heatGoodTime / 2.4) * 100))), w * 0.5, by - 12, { size: labelPx(w), color: inZone ? '#3de08a' : '#ffffff', maxWidth: w - 20 });
     } else if (step.type === 'mill_circle') {
       const cx = w * 0.5, cy = h * 0.50, rad = Math.min(w, h) * 0.18;
       const turns = this.millSweep / (Math.PI * 2);
@@ -643,15 +648,8 @@ export class AjilloCookingGame {
       ctx.fillStyle = '#5ce1ff';
       ctx.beginPath(); ctx.arc(ox, oy, 10, 0, Math.PI * 2); ctx.fill();
 
-      ctx.fillStyle = 'rgba(8, 16, 30, 0.88)';
-      ctx.beginPath(); ctx.roundRect(cx - 125, cy + rad + 16, 250, 32, 16); ctx.fill();
-      ctx.strokeStyle = inZone ? '#3de08a' : '#ffe066'; ctx.lineWidth = 1.8; ctx.stroke();
-      ctx.fillStyle = inZone ? '#3de08a' : '#ffffff';
-      ctx.font = 'bold 14px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
       const turnText = inZone ? t('{0}回転 — 今だ！指をはなそう', turns.toFixed(1)) : t('{0} 回転（目標 3.0〜4.0回転）', turns.toFixed(1));
-      ctx.fillText(adaptText(turnText), cx, cy + rad + 32, 234);
+      drawOutlinedText(ctx, adaptText(turnText), cx, cy + rad + 32, { size: labelPx(w), color: inZone ? '#3de08a' : '#ffffff', baseline: 'middle', maxWidth: w - 20 });
     }
   }
 
@@ -659,6 +657,7 @@ export class AjilloCookingGame {
     if (!this.active) return;
     const safeDt = Math.min(0.05, dt);
     this.time += safeDt;
+    this._lastDt = safeDt;
     this.seCooldown = Math.max(0, this.seCooldown - safeDt);
 
     if (this.feedbackTimer > 0) {
@@ -684,7 +683,19 @@ export class AjilloCookingGame {
 
       if (step.type === 'heat_keep') {
         this.heatElapsed += safeDt;
-        this.heatDial = Math.max(0.05, Math.min(1.0, this.heatDial + Math.sin(this.time * 2.4) * safeDt * 0.14));
+        // The flame swings hard between low and high every 0.9-1.4 s. Left alone it only
+        // passes through the green zone briefly and the step fails; a finger holding the
+        // dial near the green keeps it there, but still feels the flame pushing.
+        this.heatGustTimer -= safeDt;
+        if (this.heatGustTimer <= 0) {
+          this.heatTargetLow = !this.heatTargetLow;
+          this.heatTarget = this.heatTargetLow ? 0.05 + Math.random() * 0.17 : 0.72 + Math.random() * 0.26;
+          this.heatGustTimer = 0.9 + Math.random() * 0.5;
+        }
+        const pushRate = (this.pointerDown ? 0.9 : 1.1) * safeDt;
+        this.heatDial += Math.max(-pushRate, Math.min(pushRate, this.heatTarget - this.heatDial));
+        if (this.pointerDown) this.heatDial += (this.heatFingerX - this.heatDial) * Math.min(1, safeDt * 8);
+        this.heatDial = Math.max(0.05, Math.min(1.0, this.heatDial));
         this.models.flameLevel = this.heatDial * 1.25;
         this.models.setLiveGarlicHeat(this.heatDial > 0.62 ? Math.min(1.2, this.models.garlicHeat + safeDt * 0.35) : Math.min(0.72, this.heatGoodTime / 2.4 * 0.72));
         if (this.heatDial >= 0.32 && this.heatDial <= 0.62) {
@@ -708,7 +719,7 @@ export class AjilloCookingGame {
       this.camera.lookAt(-0.3, 0.25, 0.15);
     } else if (this.stepIdx <= 3) {
       // Cutting board framing
-      this.camera.position.set(0, 4.4 * portraitZoom, 3.6 * portraitZoom);
+      this.camera.position.set(this.fx.shakeOffset(), 4.4 * portraitZoom, 3.6 * portraitZoom + this.fx.shakeOffset());
       this.camera.lookAt(0, 0.25, 0.2);
     } else {
       // Skillet framing

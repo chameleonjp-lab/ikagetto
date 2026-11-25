@@ -503,6 +503,7 @@ export class ButcherStageModels {
     } else if (stepIdx === 3) {
       this.targetOpenAmount = 1.0;
       this.incisionLine.visible = false;
+      this.burstParticles(-1.1, 0.1, 0xffd8d2, 40);
       this.penMesh.visible = true;
       this.gillsGroup.visible = true;
       this.liverMesh.visible = true;
@@ -514,9 +515,11 @@ export class ButcherStageModels {
       if (!ok) this.brokenPen.visible = true;
     } else if (stepIdx === 5) {
       this.gillsGroup.visible = false;
+      if (ok) this.burstParticles(-0.8, 0.1, 0xffb4b4, 30);
       if (!ok) this.mantleHalfL.userData.flesh.material = this.stainedFleshMat;
     } else if (stepIdx === 6) {
       this.liverMesh.visible = false;
+      if (ok) this.burstParticles(-1.0, 0.1, 0xc98a5a, 30);
       if (!ok) this.mantleHalfR.userData.flesh.material = this.stainedFleshMat;
     } else if (stepIdx === 7) {
       this.inkSacMesh.visible = false;
@@ -533,9 +536,11 @@ export class ButcherStageModels {
     } else if (stepIdx === 9) {
       this.eyeL.visible = false;
       this.eyeR.visible = false;
+      this.burstParticles(1.15, 0.1, 0xeef4ff, 35);
     } else if (stepIdx === 10) {
       if (ok) this.beak.visible = false;
       else this.beak.scale.set(0.5, 0.5, 0.5);
+      this.burstParticles(1.4, 0.1, 0xffe8e4, 25);
     } else if (stepIdx === 11) {
       if (ok) {
         this.mantleHalfL.userData.skin.visible = false;
@@ -554,6 +559,7 @@ export class ButcherStageModels {
       this.burstParticles(1.35, 0.2, 0xffe8e4, 35);
     } else if (stepIdx === 14) {
       this.tentaclesGroup.position.set(1.45, 0, -0.55);
+      this.burstParticles(2.2, 0.1, 0xffe8e4, 40);
     }
   }
 
