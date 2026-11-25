@@ -150,7 +150,7 @@ export class AjilloCookingGame {
     this.el.querySelector('#cook-btn-x').addEventListener('click', () => {
       if (this.callbacks.onShareX) {
         const comment = getCommentForScore(this.totalScore, 'cooking');
-        this.callbacks.onShareX(`ダイオウイカのアヒージョ（全10工程）を作った！\n調理スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#ダイオウイカ深海釣り`);
+        this.callbacks.onShareX(`ダイオウイカのアヒージョ（全10工程）を作った！\n調理スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#イカゲット`);
       }
     });
     this.el.querySelector('#cook-btn-home').addEventListener('click', () => {

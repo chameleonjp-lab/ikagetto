@@ -212,7 +212,7 @@ export class ButcherGame {
     this.el.querySelector('#butcher-btn-x').addEventListener('click', () => {
       if (this.callbacks.onShareX) {
         const comment = getCommentForScore(this.totalScore, 'butcher');
-        this.callbacks.onShareX(`ダイオウイカ（全15工程）を解体した！\n解体スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#ダイオウイカ深海釣り`);
+        this.callbacks.onShareX(`ダイオウイカ（全15工程）を解体した！\n解体スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#イカゲット`);
       }
     });
     this.el.querySelector('#butcher-btn-next').addEventListener('click', () => {

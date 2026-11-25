@@ -718,7 +718,7 @@ export class HUDManager {
       <div id="home-screen">
         <div class="home-card">
           <div class="home-kicker">DEEP SEA FISHING SIMULATOR</div>
-          <div class="home-title">ダイオウイカ深海釣り</div>
+          <div class="home-title">イカゲット</div>
           <div class="home-latin">Architeuthis dux — Depth 800m</div>
           <div class="home-steps">
             <div class="home-step"><strong>① 索敵・投下</strong>360°スティックで反応地点へ近づき仕掛けを投下</div>
@@ -1068,7 +1068,7 @@ export class HUDManager {
       this.joyY = dy / maxJoyRadius;
       this.elJoyKnob.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
     };
-    const resetJoy = () => {
+    const resetJoy = this._resetJoy = () => {
       this.joyPointerId = null;
       this.joyX = 0;
       this.joyY = 0;
@@ -1158,6 +1158,17 @@ export class HUDManager {
     this.sonarDepthHistory.fill(0);
     this._applyPanelVisibility();
     if (this.callbacks.onRetry) this.callbacks.onRetry();
+  }
+
+  // Forget every finger / key that is currently held. Used when a guide card opens:
+  // the card swallows the finger-up event, so a held "↑ 巻上" would stay pressed.
+  releaseAllInputs() {
+    this.heldButtons.clear();
+    this.layer.querySelectorAll('[data-hold].pressed').forEach((b) => b.classList.remove('pressed'));
+    this.keys.clear();
+    if (this._resetJoy) this._resetJoy();
+    this.inputState.hookAction = false;
+    this.inputState.craneAction = false;
   }
 
   pollControls() {

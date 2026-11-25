@@ -12,6 +12,7 @@ import { ButcherGame } from './games/ButcherGame.js';
 import { AjilloCookingGame } from './games/AjilloCookingGame.js';
 import { FlowMenuManager, shareToX } from './ui/FlowMenuManager.js';
 import { MiniGameAudio } from './audio/MiniGameAudio.js';
+import { ensureAudioContext, unlockAudio, installAudioUnlock, onAudioContextCreated } from './audio/SharedAudio.js';
 import { applyStudioEnvironment } from './models/StudioEnv.js';
 import { ResultFXManager } from './ui/ResultFX.js';
 import { FishingTutorial } from './ui/FishingTutorial.js';
@@ -29,14 +30,17 @@ class MaritimeAudio {
   }
 
   initOnGesture() {
-    if (this.started) {
-      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-      return;
-    }
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    this.ctx = new AudioCtx();
+    unlockAudio();
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
     this.started = true;
+    if (this.ctx !== ctx) this._build(ctx);
+  }
+
+  // Builds the always-on sea / engine / winch sound graph on the given context.
+  // Called again when the shared context had to be replaced (see SharedAudio.js).
+  _build(ctx) {
+    this.ctx = ctx;
 
     this.master = this.ctx.createGain();
     this.master.gain.value = this.muted ? 0 : 0.45;
@@ -217,6 +221,9 @@ let activeAppMode = 'FISHING'; // 'FISHING' | 'FISHING_RESULT' | 'BUTCHER' | 'CO
 const miniAudio = new MiniGameAudio();
 const resultFX = new ResultFXManager(appContainer);
 const tutorial = new FishingTutorial(appContainer);
+// When a guide card opens, let go of any held button so the game does not keep
+// reeling (or steering) the moment the card is closed.
+tutorial.onPauseChange = (paused) => { if (paused) hud.releaseAllInputs(); };
 const fishingResultScene = new FishingResultScene();
 
 const flowMenus = new FlowMenuManager(appContainer, {
@@ -323,7 +330,11 @@ const hud = new HUDManager(appContainer, {
   }
 });
 
-window.addEventListener('pointerdown', () => audio.initOnGesture(), { once: true });
+// Wake the shared audio on every tap (not only the first one), so sound comes back
+// after the page was hidden, the phone was locked, or a game was replayed.
+installAudioUnlock();
+window.addEventListener('pointerdown', () => audio.initOnGesture(), { capture: true });
+onAudioContextCreated((ctx) => { if (audio.started) audio._build(ctx); });
 hud.setGuideReplayVisible(GuideStore.anySeen());
 
 // =============================================================================

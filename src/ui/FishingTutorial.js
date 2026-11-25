@@ -121,7 +121,7 @@ export class FishingTutorial {
         <div class="tut-title" id="tut-title">--</div>
         <div class="tut-body" id="tut-body">--</div>
         <div class="tut-actions">
-          <button type="button" class="tut-ok-btn" id="tut-ok">わかった</button>
+          <button type="button" class="tut-ok-btn" id="tut-ok">分かった</button>
         </div>
         <div class="tut-pause-note">この説明が出ている間、ゲームは止まっています</div>
       </div>
@@ -219,7 +219,7 @@ export class FishingTutorial {
     this.elTag.textContent = this.currentStep.tag;
     this.elTitle.textContent = this.currentStep.title;
     this.elBody.innerHTML = this.currentStep.html;
-    this.elOk.textContent = this.queue.length > 0 ? '次へ ▶' : (this.currentStep.okLabel || 'わかった');
+    this.elOk.textContent = '分かった';
     this.el.classList.remove('hidden');
 
     // Position spotlight on next frame so target HUD panel layout is settled
@@ -296,14 +296,13 @@ export class FishingTutorial {
           selector: '#ship-keypad',
           title: '丸いスティックで、船を動かす',
           html: '指を置いてすべらせると、その向きに船が進みます。ソナーの数字が<b>22m以下</b>になるまで近づこう。',
-          okLabel: '船を動かす'
         }
       ]);
       return;
     }
 
     // 2. Arrived above the target: explain the drop button.
-    if (this._armed('search_drop', phase === 'SEARCH' && snap.distanceToTarget <= 22, 0.4)) {
+    if (this._armed('search_drop', phase === 'SEARCH' && snap.hotspot && snap.hotspot.distance <= 22, 0.4)) {
       this._enqueue([
         {
           id: 'search_drop',
@@ -311,7 +310,6 @@ export class FishingTutorial {
           selector: '#btn-reel-out',
           title: '「↓ 繰出/投下」を長押しする',
           html: '仕掛けが深海へ降りていきます。水深が<b>600m</b>に届くと、イカが近づいてきます。',
-          okLabel: '仕掛けを降ろす'
         }
       ]);
       return;
@@ -326,27 +324,38 @@ export class FishingTutorial {
           selector: '#btn-hook',
           title: 'まだ押さずに、イカを待つ',
           html: '腕で餌をさわっている間に押すと、イカが逃げます。<b>「HOOK UP!!」</b>の文字が出たら、赤く光る<b>「フッキング」</b>をすぐ押そう。数秒で消えます。',
-          okLabel: '待つ'
         }
       ]);
       return;
     }
 
-    // 4. FIGHT: let the "掛かった!!" callout play first, then explain the meters.
-    if (this._armed('fight_gauges', phase === 'FIGHT', 1.3)) {
+    // 4. FIGHT: let the "掛かった!!" callout play first, then point at each control in turn.
+    if (this._armed('fight_reel_in', phase === 'FIGHT', 1.3)) {
       this._enqueue([
+        {
+          id: 'fight_reel_in',
+          tag: 'はじめてガイド',
+          selector: '#btn-reel-in',
+          title: '「↑ 巻上」を長押しして引き上げる',
+          html: '押している間、糸を巻き上げます。水深が<b>0m</b>になれば、海面まで引き上げ成功です。'
+        },
         {
           id: 'fight_gauges',
           tag: 'はじめてガイド',
           selector: '#top-gauges',
-          title: '「↑ 巻上」を長押しして引き上げる',
-          html: `水深0mまで巻き上げれば成功です。上の計器を見ながら巻こう。
-          <ul>
-            <li><b>ライン張力</b>が赤くなったら、巻上から指をはなすか「↓ 繰出」で糸を出す</li>
-            <li><b>ウインチ温度</b>が高いときも、少し休ませる</li>
+          title: '上の計器を見ながら巻く',
+          html: `<ul>
+            <li><b>ライン張力</b>が赤くなると、糸が切れそうです</li>
+            <li><b>ウインチ温度</b>が高いときは、少し休ませる</li>
             <li><b>イカスタミナ</b>が減るほど、楽に巻ける</li>
-          </ul>`,
-          okLabel: '巻き上げる'
+          </ul>`
+        },
+        {
+          id: 'fight_reel_out',
+          tag: 'はじめてガイド',
+          selector: '#btn-reel-out',
+          title: '張力が赤いときは「↓ 繰出」で糸を出す',
+          html: 'イカが暴れて張力が上がったら、巻上から指をはなすか、<b>「↓ 繰出」</b>を押して糸をゆるめます。そのまま巻き続けると、糸が切れます。'
         }
       ]);
       return;
@@ -361,7 +370,6 @@ export class FishingTutorial {
           selector: '#crane-timing-panel',
           title: '3つが緑になったら、クレーンを押す',
           html: '「ロール」「イカ静止」「波頂点」の3つが緑になると、オレンジのボタンが光ります。その瞬間に押す操作を<b>3回</b>成功させると捕獲です。',
-          okLabel: '引き上げる',
           isFinal: true
         }
       ]);

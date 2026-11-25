@@ -1,4 +1,6 @@
 // Procedural Web Audio API Sound Effects & Tier-Differentiated Result Jingles (Zero external files)
+import { ensureAudioContext } from './SharedAudio.js';
+
 export class MiniGameAudio {
   constructor() {
     this.ctx = null;
@@ -7,12 +9,9 @@ export class MiniGameAudio {
 
   _ensure() {
     if (this.muted) return null;
-    if (!this.ctx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return null;
-      this.ctx = new AC();
-    }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.ctx = ensureAudioContext();
+    if (!this.ctx) return null;
+    if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
     return this.ctx;
   }
 
