@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime.js';
 import * as THREE from 'three';
 import { FishermanModel } from '../models/FishermanModel.js';
 import { createTieredGiantSquid } from '../models/GiantSquidTiers.js';
@@ -158,7 +159,7 @@ export class FishingResultScene {
     }
 
     // Crisp amber pill badge directly above the 170cm Fisherman's head!
-    const fisherBadge = this._makeCrispBadgeSprite('漁師 170cm', '#ffe07a', '#f5b342', 'rgba(24,18,8,0.90)', lblH * 1.05);
+    const fisherBadge = this._makeCrispBadgeSprite(t('漁師 170cm'), '#ffe07a', '#f5b342', 'rgba(24,18,8,0.90)', lblH * 1.05);
     fisherBadge.position.set(this.preset.fishermanX, 1.70 + lblH * 0.78, 0.4);
     this.labelSprites.add(fisherBadge);
   }

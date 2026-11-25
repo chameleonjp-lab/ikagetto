@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>イカゲット – ランキング</title>
+  <link rel="stylesheet" href="./src/ranking/page.css">
+</head>
+<body>
+  <main class="rank-page">
+    <header class="rank-header">
+      <div>
+        <a class="back" id="go-home" href="./">ゲームに戻る</a>
+        <h1>イカゲット <span id="board-title">ランキング</span></h1>
+      </div>
+      <select id="language" aria-label="言語"></select>
+    </header>
+    <dl class="stats">
+      <div><dt id="fishing-label">釣りのプレイ回数</dt><dd id="fishing-count">—</dd></div>
+      <div><dt id="registered-label">漁師登録</dt><dd id="registered-count">—</dd></div>
+    </dl>
+    <div id="mode-tabs" role="tablist" aria-label="ランキング">
+      <button type="button" id="fishing-tab" role="tab" data-mode="fishing" aria-controls="ranking-panel" aria-selected="true">釣り</button>
+      <button type="button" id="butcher-tab" role="tab" data-mode="butcher" aria-controls="ranking-panel" aria-selected="false" tabindex="-1">解体</button>
+      <button type="button" id="cooking-tab" role="tab" data-mode="cooking" aria-controls="ranking-panel" aria-selected="false" tabindex="-1">料理</button>
+    </div>
+    <section id="ranking-panel" role="tabpanel" aria-labelledby="fishing-tab" tabindex="0">
+      <div class="status" id="board-status" role="status"></div>
+      <button class="retry" id="retry" type="button" hidden>再読み込み</button>
+      <table id="board-table" hidden>
+        <thead><tr><th id="rank-label" scope="col">順位</th><th id="name-label" scope="col">名前</th><th id="score-label" scope="col">スコア</th></tr></thead>
+        <tbody id="board-rows"></tbody>
+      </table>
+    </section>
+  </main>
+  <script type="module" src="./src/ranking/page.js"></script>
+</body>
+</html>

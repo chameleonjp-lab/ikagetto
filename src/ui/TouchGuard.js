@@ -12,13 +12,15 @@
 //  - Nothing lets a page block the browser's back action itself, so during play we
 //    keep an extra history entry and step forward again when "back" is used.
 //
-// The game has no scrollable areas or text inputs, so the whole page can opt out.
+// The home screen still supports scrolling, text editing, and native controls.
 
 const EDGE_PX = 24;
 
 const CSS = `
   html, body {
     overscroll-behavior: none;          /* no pull-to-refresh / overscroll navigation */
+  }
+  html.game-playing, html.game-playing body {
     touch-action: none;                 /* no pinch zoom, double-tap zoom or panning */
   }
   html, body, body * {
@@ -27,13 +29,14 @@ const CSS = `
     -webkit-touch-callout: none;        /* no long-press menu on iOS */
     -webkit-tap-highlight-color: transparent;
   }
-  input, textarea, [contenteditable="true"] {
+  html #app #home-player-name, input, textarea, [contenteditable="true"] {
     -webkit-user-select: text; user-select: text; touch-action: manipulation;
+    -webkit-touch-callout: default;
   }
 `;
 
 function isEditable(el) {
-  return !!(el && el.closest && el.closest('input, textarea, [contenteditable="true"]'));
+  return !!el?.closest?.('input, select, textarea, [contenteditable="true"]');
 }
 
 let trapBack = false;
@@ -41,6 +44,7 @@ let guardPushed = false;
 
 // Turn the "back stays in the game" guard on while playing, off on the home screen.
 export function setBackGuard(on) {
+  if (trapBack !== !!on) document.documentElement.classList.toggle('game-playing', !!on);
   trapBack = !!on;
   if (trapBack && !guardPushed) {
     try { history.pushState({ ikagettoGuard: true }, ''); guardPushed = true; } catch (_) {}
@@ -65,18 +69,20 @@ export function installTouchGuard() {
   // Pinch zoom (WebKit gesture events) and multi-finger moves.
   ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
   document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-  document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('dblclick', cancel, { passive: false });
 
   // Edge swipe back / forward: cancel touches that start at the left or right edge.
   // Cancelling a touchstart also cancels the click that would follow, so a button
   // touched there is clicked by hand when the finger lifts on the same button.
   let edgeTarget = null;
   document.addEventListener('touchstart', (e) => {
+    edgeTarget = null;
+    if (!trapBack || isEditable(e.target)) return;
     const t = e.touches[0];
     if (!t || e.touches.length > 1) return;
-    if (t.clientX > EDGE_PX && t.clientX < window.innerWidth - EDGE_PX) { edgeTarget = null; return; }
+    if (t.clientX > EDGE_PX && t.clientX < window.innerWidth - EDGE_PX) return;
     e.preventDefault();
-    edgeTarget = e.target && e.target.closest ? e.target.closest('button, [role="button"]') : null;
+    edgeTarget = e.target?.closest?.('button, [role="button"], a[href]') || null;
   }, { passive: false });
   document.addEventListener('touchend', (e) => {
     if (!edgeTarget) return;

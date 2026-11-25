@@ -1,0 +1,63 @@
+:root {
+  color-scheme: dark;
+  color: #eef7ff;
+  background: #040a13;
+  font-family: system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+.rank-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px clamp(12px, 4vw, 32px) 48px;
+}
+.rank-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.back { color: #91e5fa; display: inline-block; padding: 6px 0; }
+h1 { margin: 14px 0 18px; font-size: clamp(22px, 6vw, 34px); line-height: 1.18; overflow-wrap: anywhere; }
+h1 span { display: block; margin-top: 5px; color: #b3cedd; font-size: .64em; }
+button, select { font: inherit; color: inherit; cursor: pointer; }
+select, .retry {
+  font-size: 16px;
+  min-height: 44px;
+  border: 1px solid #315578;
+  border-radius: 8px;
+  background: #0d1c2c;
+  padding: 6px 10px;
+}
+select { max-width: 44%; }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.stats > div { padding: 12px; border: 1px solid #25445f; border-radius: 10px; background: #0b1725; }
+dt { color: #b8cee0; font-size: .855rem; overflow-wrap: anywhere; }
+dd { margin: 5px 0 0; font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+[role=tablist] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-bottom: 10px; }
+[role=tab] {
+  min-height: 44px;
+  background: #0e1a27;
+  border: 1px solid #294763;
+  border-radius: 8px;
+  padding: 8px 3px;
+  overflow-wrap: anywhere;
+}
+[role=tab][aria-selected=true] { background: #91e5fa; color: #07121e; border-color: #91e5fa; font-weight: 750; }
+:focus-visible { outline: 2px solid #ffd176; outline-offset: 2px; }
+#ranking-panel { min-height: 140px; }
+.status { color: #b8cee0; padding: 12px 0; }
+.status:empty { display: none; }
+table { border-collapse: collapse; width: 100%; background: #0b1725; }
+th, td { padding: 10px clamp(6px, 3vw, 16px); text-align: left; border-bottom: 1px solid #1f3b52; }
+th { color: #afc8db; }
+td:first-child { width: 15%; color: #9fdff1; font-variant-numeric: tabular-nums; }
+th:last-child, td:last-child { width: 26%; text-align: right; font-variant-numeric: tabular-nums; }
+td:nth-child(2) { overflow-wrap: anywhere; }
+.catch-metrics {
+  display: block;
+  color: #b8cee0;
+  margin-top: 4px;
+  font-size: .8rem;
+  line-height: 1.4;
+}

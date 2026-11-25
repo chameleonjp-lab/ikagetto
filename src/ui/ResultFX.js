@@ -1,3 +1,5 @@
+import { formatNumber, t } from '../i18n/runtime.js';
+
 // Shared Tier-Differentiated Result Screen Celebration & Gloom VFX Overlay
 // Supports S+ (Gold/Rainbow Fireworks & Confetti), S (Gold Confetti), A (Emerald Sparkles),
 // B (Calm Blue Motes), and C/D (Comedic Raindrops & Card Shake) + Animated Score Count-Up!
@@ -119,7 +121,7 @@ export class ResultFXManager {
     if (ribbonEl) {
       ribbonEl.classList.remove(...allRib);
       ribbonEl.classList.add(`res-ribbon-${info.key}`);
-      ribbonEl.textContent = info.label;
+      ribbonEl.textContent = t(info.label);
     }
   }
 
@@ -127,10 +129,10 @@ export class ResultFXManager {
     if (!el) return;
     const start = performance.now();
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      const ease = 1 - Math.pow(1 - t, 3);
-      el.textContent = `${Math.round(targetScore * ease).toLocaleString()} 点`;
-      if (t < 1) requestAnimationFrame(tick);
+      const progress = Math.min(1, (now - start) / durationMs);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      el.textContent = t('{0} 点', formatNumber(Math.round(targetScore * ease)));
+      if (progress < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   }

@@ -1,3 +1,4 @@
+import { getLanguage } from '../i18n/runtime.js';
 // Japanese line breaking by phrase for the whole game.
 //
 // Browsers may break Japanese between any two characters, which splits words
@@ -48,7 +49,7 @@ function processText(node) {
   const text = node.data;
   if (!text || text.length < 2 || done.has(text) || !JA_RE.test(text)) return;
   const p = node.parentNode;
-  if (!p || SKIP_TAGS.has(p.nodeName)) return;
+  if (!p || SKIP_TAGS.has(p.nodeName) || p.closest?.('[data-user-text]')) return;
   const out = convert(text);
   if (out !== text) node.data = out;
 }
@@ -76,6 +77,7 @@ function injectStyles() {
 }
 
 export async function installJapaneseLineBreak() {
+  if (getLanguage() !== 'ja') return;
   // The word swap for mouse users works even without BudouX.
   const observe = () => {
     processTree(document.body);

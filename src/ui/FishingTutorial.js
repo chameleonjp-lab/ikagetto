@@ -1,3 +1,4 @@
+import { localizeHtml, t, tHtml } from '../i18n/runtime.js';
 import { GuideStore } from './MiniGameCoach.js';
 
 // First-Time Play Contextual Spotlight Tutorial for Deep-Sea Giant Squid Fishing
@@ -110,7 +111,7 @@ export class FishingTutorial {
     this.el = document.createElement('div');
     this.el.id = 'tut-backdrop';
     this.el.className = 'hidden';
-    this.el.innerHTML = `
+    this.el.innerHTML = localizeHtml(`
       <div id="tut-full-dim" class="hidden"></div>
       <div id="tut-spotlight"></div>
       <div id="tut-card">
@@ -125,7 +126,7 @@ export class FishingTutorial {
         </div>
         <div class="tut-pause-note">この説明が出ている間、ゲームは止まっています</div>
       </div>
-    `;
+    `);
     this.root.appendChild(this.el);
 
     this.elFullDim = this.el.querySelector('#tut-full-dim');
@@ -217,10 +218,10 @@ export class FishingTutorial {
     this.active = true;
     if (this.onPauseChange) this.onPauseChange(true);
 
-    this.elTag.textContent = this.currentStep.tag;
-    this.elTitle.textContent = this.currentStep.title;
-    this.elBody.innerHTML = this.currentStep.html;
-    this.elOk.textContent = '分かった';
+    this.elTag.textContent = t(this.currentStep.tag);
+    this.elTitle.textContent = t(this.currentStep.title);
+    this.elBody.innerHTML = tHtml(this.currentStep.html);
+    this.elOk.textContent = t('分かった');
     this.el.classList.remove('hidden');
 
     // Position spotlight on next frame so target HUD panel layout is settled
