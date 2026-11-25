@@ -1,4 +1,9 @@
 import { isMouseInput } from './DeviceProfile.js';
+import { SUPPORTED_LANGUAGES } from '../i18n/languages.js';
+import { getLanguage, localizeHtml, setLanguage, t } from '../i18n/runtime.js';
+import { getPlayerName, setPlayerName } from '../ranking/client.js';
+import { rankText } from '../ranking/messages.js';
+import { getRankingHref, shareOnX } from '../ranking/share.js';
 
 export class HUDManager {
   constructor(rootContainer, callbacks = {}) {
@@ -105,50 +110,78 @@ export class HUDManager {
       #home-screen {
         position: fixed;
         inset: 0;
-        display: flex;
+        display: grid;
+        grid-template-rows: auto 1fr;
         align-items: center;
-        justify-content: center;
-        padding: 18px;
+        gap: 12px;
+        padding: max(12px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
         background: radial-gradient(circle at 50% 45%, rgba(2, 12, 28, 0.25) 0%, rgba(1, 6, 16, 0.76) 100%);
         pointer-events: auto;
+        overflow: auto;
+        touch-action: pan-y;
         z-index: 45;
       }
+      .home-language {
+        justify-self: start;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 10px;
+        border: 1px solid rgba(92, 225, 255, 0.38);
+        border-radius: 10px;
+        background: #091a30;
+        color: #f4faff;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .home-language select {
+        color-scheme: dark;
+        color: inherit;
+        background: #091a30;
+        min-height: 44px;
+        max-width: min(50vw, 180px);
+        border: 0;
+        font: inherit;
+        font-size: 16px;
+        cursor: pointer;
+      }
       .home-card {
-        width: min(460px, 100%);
+        width: min(500px, 100%);
+        margin: auto;
         background: rgba(5, 16, 34, 0.82);
         border: 1px solid rgba(92, 225, 255, 0.38);
         border-radius: 18px;
-        padding: 26px 22px;
+        padding: 20px clamp(12px, 4vw, 22px);
         text-align: center;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         box-shadow: 0 24px 64px rgba(0, 0, 0, 0.72);
       }
       .home-title {
-        font-size: clamp(40px, 13vw, 56px);
+        font-size: clamp(32px, 11vw, 52px);
         font-weight: 900;
         color: #f4faff;
-        margin: 2px 0 18px;
+        margin-bottom: 14px;
         letter-spacing: 0.08em;
         line-height: 1.1;
         text-shadow: 0 0 22px rgba(92, 225, 255, 0.45);
       }
       .home-steps {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 8px;
-        margin-bottom: 20px;
+        margin-bottom: 14px;
       }
       .home-step {
         position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
         background: rgba(12, 30, 56, 0.75);
         border: 1px solid rgba(92, 225, 255, 0.25);
         border-radius: 12px;
-        padding: 12px 4px 10px;
+        padding: 10px 6px;
       }
       .home-step-num {
         width: 24px; height: 24px; border-radius: 50%;
@@ -156,24 +189,41 @@ export class HUDManager {
         background: var(--amber); color: #13233a;
         font-size: 14px; font-weight: 900; line-height: 1;
       }
-      .home-step-icon { width: 52px; height: 52px; color: #7ee8ff; }
+      .home-step-icon { width: 40px; height: 40px; color: #7ee8ff; }
       .home-step-label {
         font-size: clamp(12.5px, 3.6vw, 14.5px);
         font-weight: 800;
         color: #f0f8ff;
         line-height: 1.3;
       }
-      .home-equip-note {
-        font-size: 11px;
-        color: #9ac5e3;
-        background: rgba(20, 52, 86, 0.45);
-        border-radius: 8px;
-        padding: 7px 10px;
-        margin-bottom: 16px;
+      .home-step-description {
+        font-size: 12px;
+        color: #bee1f5;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+      .home-form { display: grid; gap: 8px; align-content: start; min-width: 0; }
+      .home-name { display: grid; gap: 4px; min-width: 0; text-align: start; }
+      .home-name label { color: #f4faff; font-size: 13px; font-weight: 750; }
+      #home-player-name {
+        width: 100%; min-height: 44px; border-radius: 9px; padding: 8px 10px;
+        font: inherit; font-size: 16px; color: #f4faff;
+        background: #0c2038; border: 1px solid rgba(92, 225, 255, 0.45);
+      }
+      #home-player-name[aria-invalid='true'] { border-color: #ff9a9a; }
+      .home-name-hint, .home-name-error { color: #bee1f5; font-size: 12px; line-height: 1.4; }
+      .home-name-error { color: #ffb9b9; }
+      .home-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .home-secondary {
+        min-height: 44px; display: grid; place-items: center; padding: 6px;
+        border: 1px solid rgba(92, 225, 255, 0.35); border-radius: 9px;
+        background: rgba(14, 34, 58, 0.9); color: #e8f8ff;
+        font: inherit; font-size: 13px; font-weight: 750; text-decoration: none; cursor: pointer;
       }
       .home-play-btn {
         width: 100%;
-        padding: 14px 18px;
+        min-height: 44px;
+        padding: 9px 12px;
         border-radius: 12px;
         border: 1px solid rgba(150, 238, 255, 0.65);
         background: linear-gradient(135deg, #1678be, #22b8e2);
@@ -188,10 +238,22 @@ export class HUDManager {
       .home-play-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 34px rgba(34, 184, 226, 0.58); }
       .home-play-btn:active { transform: scale(0.98); }
       .home-guide-link {
-        margin-top: 12px; background: transparent; border: none; color: #8cc8ec;
+        min-height: 36px; margin-top: 4px; background: transparent; border: none; color: #b8e5ff;
         font-size: 12px; font-weight: 700; text-decoration: underline; cursor: pointer; font-family: inherit;
       }
       .home-guide-link.hidden { display: none; }
+      @media (min-width: 600px) and (max-height: 540px) {
+        #home-screen { gap: 8px; }
+        .home-card {
+          width: min(740px, 100%); padding: 12px 14px;
+          display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 14px;
+        }
+        .home-title { font-size: 34px; margin-bottom: 8px; }
+        .home-steps { margin-bottom: 0; }
+        .home-step { padding-block: 7px; }
+        .home-step-icon { width: 28px; height: 28px; }
+        .home-guide-link { grid-column: 1 / -1; justify-self: center; }
+      }
 
       /* Top Stack: Toolbar + Guide + Hookup/Fight Instruments */
       #hud-top-wrap {
@@ -744,45 +806,66 @@ export class HUDManager {
   _buildDOM() {
     this.layer = document.createElement('div');
     this.layer.id = 'hud-layer';
-    this.layer.innerHTML = `
+    this.layer.innerHTML = localizeHtml(`
       <!-- HOME SCREEN -->
       <div id="home-screen">
+        <label class="home-language" for="home-language">
+          <span id="home-language-label"></span>
+          <select id="home-language"></select>
+        </label>
         <div class="home-card">
-          <div class="home-title">イカゲット</div>
-          <div class="home-steps">
-            <div class="home-step">
-              <div class="home-step-num">1</div>
-              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
-                <circle cx="24" cy="24" r="4" fill="currentColor" stroke="none"/>
-                <path d="M15 33 A12.7 12.7 0 0 1 15 15"/><path d="M33 15 A12.7 12.7 0 0 1 33 33"/>
-                <path d="M9 39 A21 21 0 0 1 9 9" opacity="0.55"/><path d="M39 9 A21 21 0 0 1 39 39" opacity="0.55"/>
-              </svg>
-              <div class="home-step-label">イカを探す</div>
-            </div>
-            <div class="home-step">
-              <div class="home-step-num">2</div>
-              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M24 4 C31 10 32 19 30 27 H18 C16 19 17 10 24 4 Z"/>
-                <circle cx="21" cy="23" r="1.6" fill="currentColor" stroke="none"/><circle cx="27" cy="23" r="1.6" fill="currentColor" stroke="none"/>
-                <path d="M19 27 C17 34 13 37 11 43"/><path d="M22 27 C21 35 20 39 19 44"/>
-                <path d="M26 27 C27 35 28 39 29 44"/><path d="M29 27 C31 34 35 37 37 43"/>
-                <path d="M40 8 L40 15" stroke="#ffd454"/><circle cx="40" cy="20" r="1.5" fill="#ffd454" stroke="none"/>
-              </svg>
-              <div class="home-step-label">イカを見つける</div>
-            </div>
-            <div class="home-step">
-              <div class="home-step-num">3</div>
-              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 42 L32 6"/>
-                <path d="M32 6 C36 14 37 22 36 30"/>
-                <path d="M36 30 V36 A4 4 0 0 1 28 36"/><path d="M28 36 L30 34"/>
-                <path d="M3 42 H13" opacity="0.55"/>
-              </svg>
-              <div class="home-step-label">イカを釣る</div>
+          <div>
+            <h1 class="home-title">イカゲット</h1>
+            <div class="home-steps">
+              <div class="home-step">
+                <div class="home-step-num">1</div>
+                <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+                  <circle cx="24" cy="24" r="4" fill="currentColor" stroke="none"/>
+                  <path d="M15 33 A12.7 12.7 0 0 1 15 15"/><path d="M33 15 A12.7 12.7 0 0 1 33 33"/>
+                  <path d="M9 39 A21 21 0 0 1 9 9" opacity="0.55"/><path d="M39 9 A21 21 0 0 1 39 39" opacity="0.55"/>
+                </svg>
+                <div class="home-step-label" id="home-search"></div>
+                <p class="home-step-description" id="home-search-desc"></p>
+              </div>
+              <div class="home-step">
+                <div class="home-step-num">2</div>
+                <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M24 4 C31 10 32 19 30 27 H18 C16 19 17 10 24 4 Z"/>
+                  <circle cx="21" cy="23" r="1.6" fill="currentColor" stroke="none"/><circle cx="27" cy="23" r="1.6" fill="currentColor" stroke="none"/>
+                  <path d="M19 27 C17 34 13 37 11 43"/><path d="M22 27 C21 35 20 39 19 44"/>
+                  <path d="M26 27 C27 35 28 39 29 44"/><path d="M29 27 C31 34 35 37 37 43"/>
+                  <path d="M40 8 L40 15" stroke="#ffd454"/><circle cx="40" cy="20" r="1.5" fill="#ffd454" stroke="none"/>
+                </svg>
+                <div class="home-step-label" id="home-find"></div>
+                <p class="home-step-description" id="home-find-desc"></p>
+              </div>
+              <div class="home-step">
+                <div class="home-step-num">3</div>
+                <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M6 42 L32 6"/>
+                  <path d="M32 6 C36 14 37 22 36 30"/>
+                  <path d="M36 30 V36 A4 4 0 0 1 28 36"/><path d="M28 36 L30 34"/>
+                  <path d="M3 42 H13" opacity="0.55"/>
+                </svg>
+                <div class="home-step-label" id="home-catch"></div>
+                <p class="home-step-description" id="home-catch-desc"></p>
+              </div>
             </div>
           </div>
 
-          <button type="button" id="btn-home-play" class="home-play-btn">出港する</button>
+          <form class="home-form" id="home-form" novalidate>
+            <div class="home-name">
+              <label for="home-player-name" id="home-name-label"></label>
+              <input id="home-player-name" type="text" autocomplete="nickname" enterkeyhint="go" aria-describedby="home-name-hint home-name-error" />
+              <p class="home-name-hint" id="home-name-hint"></p>
+              <p class="home-name-error hidden" id="home-name-error" role="alert"></p>
+            </div>
+            <button type="submit" id="btn-home-play" class="home-play-btn"></button>
+            <div class="home-links">
+              <button type="button" id="btn-home-share" class="home-secondary"></button>
+              <a id="home-ranking-link" class="home-secondary" href="./ranking.html"></a>
+            </div>
+          </form>
           <button type="button" id="btn-home-guide" class="home-guide-link hidden">はじめてガイドを、もう一度見る</button>
         </div>
       </div>
@@ -933,13 +1016,17 @@ export class HUDManager {
           <button type="button" id="btn-retry" class="primary-btn">もう一度出港する</button>
         </div>
       </div>
-    `;
+    `);
     this.root.appendChild(this.layer);
 
     // Cache DOM refs
     this.elHomeScreen = document.getElementById('home-screen');
-    this.elBtnHomePlay = document.getElementById('btn-home-play');
+    this.elHomeForm = document.getElementById('home-form');
+    this.elHomeLanguage = document.getElementById('home-language');
+    this.elPlayerName = document.getElementById('home-player-name');
+    this.elNameError = document.getElementById('home-name-error');
     this.elBtnHomeGuide = document.getElementById('btn-home-guide');
+    this._populateHome();
     this.elTopWrap = document.getElementById('hud-top-wrap');
     this.elShipKeypad = document.getElementById('ship-keypad');
     this.elActionPad = document.getElementById('action-pad');
@@ -1021,17 +1108,53 @@ export class HUDManager {
   }
 
   _showCallout(mainText, subText, duration = 2.2, isHooked = false) {
-    this.elCalloutMain.textContent = mainText;
+    this.elCalloutMain.textContent = t(mainText);
     this.elCalloutMain.classList.toggle('hooked', isHooked);
-    this.elCalloutSub.textContent = subText;
+    this.elCalloutSub.textContent = t(subText);
     this.elBigCallout.classList.add('show');
     this.calloutTimer = duration;
+  }
+
+  _populateHome() {
+    const labels = {
+      'home-language-label': 'language',
+      'home-search': 'homeSearch',
+      'home-search-desc': 'homeSearchDesc',
+      'home-find': 'homeFind',
+      'home-find-desc': 'homeFindDesc',
+      'home-catch': 'homeCatch',
+      'home-catch-desc': 'homeCatchDesc',
+      'home-name-label': 'name',
+      'home-name-hint': 'nameHint',
+      'home-name-error': 'nameInvalid',
+      'btn-home-play': 'start',
+      'btn-home-share': 'share',
+      'home-ranking-link': 'ranking'
+    };
+    for (const [id, key] of Object.entries(labels)) {
+      document.getElementById(id).textContent = rankText(key);
+    }
+    for (const language of SUPPORTED_LANGUAGES) {
+      const option = new Option(language.name, language.id);
+      option.lang = language.locale;
+      this.elHomeLanguage.add(option);
+    }
+    this.elHomeLanguage.value = getLanguage();
+    this.elPlayerName.value = getPlayerName();
+    document.getElementById('home-ranking-link').href = getRankingHref();
+  }
+
+  _savePlayerName() {
+    const valid = setPlayerName(this.elPlayerName.value);
+    this.elPlayerName.setAttribute('aria-invalid', String(!valid));
+    this.elNameError.classList.toggle('hidden', valid);
+    return valid;
   }
 
   setGuideReplayVisible(visible) {
     this.elBtnHomeGuide.classList.toggle('hidden', !visible);
     this.elBtnHomeGuide.disabled = false;
-    this.elBtnHomeGuide.textContent = 'はじめてガイドを、もう一度見る';
+    this.elBtnHomeGuide.textContent = t('はじめてガイドを、もう一度見る');
   }
 
   _applyPanelVisibility() {
@@ -1049,8 +1172,27 @@ export class HUDManager {
   _bindEvents() {
     this.heldButtons = new Set();
 
-    // Home Play button
-    this.elBtnHomePlay.addEventListener('click', () => {
+    this.elHomeLanguage.addEventListener('change', () => {
+      const language = this.elHomeLanguage.value;
+      setLanguage(language);
+      const url = new URL(window.location.href);
+      url.searchParams.set('lang', language);
+      window.location.replace(url.href);
+    });
+    this.elPlayerName.addEventListener('input', (event) => {
+      if (!event.isComposing) this._savePlayerName();
+    });
+    this.elPlayerName.addEventListener('compositionend', () => this._savePlayerName());
+    document.getElementById('btn-home-share').addEventListener('click', () => shareOnX('home'));
+
+    this.elHomeForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!this._savePlayerName()) {
+        this.elPlayerName.focus();
+        return;
+      }
+      this.elPlayerName.value = getPlayerName();
+      this.elPlayerName.blur();
       this.userClosedGauges = false;
       this.panelState.gauges = false;
       this.panelState.sonar = true;
@@ -1061,11 +1203,11 @@ export class HUDManager {
     // Replay first-play guides
     this.elBtnHomeGuide.addEventListener('click', () => {
       if (this.callbacks.onResetGuides) this.callbacks.onResetGuides();
-      this.elBtnHomeGuide.textContent = '次のプレイから、ガイドをもう一度表示します';
+      this.elBtnHomeGuide.textContent = t('次のプレイから、ガイドをもう一度表示します');
       this.elBtnHomeGuide.disabled = true;
     });
 
-        // Inspection buttons
+    // Inspection buttons
     this.elBtnShowResult.addEventListener('click', () => {
       if (this.callbacks.onOpenResult) this.callbacks.onOpenResult();
     });
@@ -1172,6 +1314,7 @@ export class HUDManager {
 
     // Keyboard controls
     window.addEventListener('keydown', (e) => {
+      if (this.lastPhase === 'HOME' || e.isComposing || e.target.closest?.('input, select, textarea, [contenteditable="true"]')) return;
       if (['ArrowUp', 'ArrowDown', 'Space', 'Tab'].includes(e.code)) e.preventDefault();
       this.keys.add(e.code);
       if (e.code === 'Space') this.inputState.hookAction = true;
@@ -1198,7 +1341,7 @@ export class HUDManager {
     this.elBtnMute.addEventListener('click', () => {
       if (this.callbacks.onToggleMute) {
         const muted = this.callbacks.onToggleMute();
-        this.elBtnMute.textContent = muted ? '音OFF' : '音ON';
+        this.elBtnMute.textContent = muted ? t('音OFF') : t('音ON');
       }
     });
     this.elBtnRetry.addEventListener('click', () => {
@@ -1365,10 +1508,10 @@ export class HUDManager {
     // Compact axis labels
     ctx.fillStyle = 'rgba(180, 220, 245, 0.72)';
     ctx.font = '9px sans-serif';
-    ctx.fillText('反応強', 4, 11);
-    ctx.fillText('投下OKライン', 4, readyY - 3);
+    ctx.fillText(t('反応強'), 4, 11);
+    ctx.fillText(t('投下OKライン'), 4, readyY - 3);
 
-    this.elSonarSigLbl.textContent = `反応 ${Math.round(sig * 100)}%`;
+    this.elSonarSigLbl.textContent = t('反応 {0}%', Math.round(sig * 100));
   }
 
   update(snap, dt, isROVMain) {
@@ -1427,22 +1570,22 @@ export class HUDManager {
 
     // Inspect Bar stats
     if (isInspect && snap.result) {
-      this.elInspectStats.textContent = `捕獲成功！ 推定全長 ${snap.result.lengthMeters} m ／ 推定体重 ${snap.result.weightKg} kg`;
+      this.elInspectStats.textContent = t('捕獲成功！ 推定全長 {0} m ／ 推定体重 {1} kg', snap.result.lengthMeters, snap.result.weightKg);
     }
 
     // Result / Game Over Modal (only shown on SUCCESS after Inspect, or GAMEOVER)
     if (snap.phase === 'GAMEOVER' && snap.result) {
       this.elResultModal.classList.remove('hidden');
       if (snap.result.success) {
-        this.elResTitle.textContent = 'ダイオウイカ揚収リザルト';
-        this.elResRank.textContent = `RANK ${snap.result.rank}`;
-        this.elResBody.innerHTML = `推定全長：<strong>${snap.result.lengthMeters} m</strong> ／ 推定体重：<strong>${snap.result.weightKg} kg</strong><br>所要時間：<strong>${Math.round(snap.result.elapsedTime)} 秒</strong>`;
-        this.elResAdvice.textContent = '見事な操船・フッキング・ランディングでした！';
+        this.elResTitle.textContent = t('ダイオウイカ揚収リザルト');
+        this.elResRank.textContent = t('RANK {0}', snap.result.rank);
+        this.elResBody.textContent = t('推定全長：{0} m ／ 推定体重：{1} kg ／ 所要時間：{2} 秒', snap.result.lengthMeters, snap.result.weightKg, Math.round(snap.result.elapsedTime));
+        this.elResAdvice.textContent = t('見事な操船・フッキング・ランディングでした！');
       } else {
         this.elResTitle.textContent = snap.result.title;
-        this.elResRank.textContent = 'MISSION FAILED';
+        this.elResRank.textContent = t('MISSION FAILED');
         this.elResBody.textContent = snap.result.reason;
-        this.elResAdvice.textContent = `対策アドバイス：${snap.result.advice}`;
+        this.elResAdvice.textContent = t('対策アドバイス：{0}', snap.result.advice);
       }
     } else {
       this.elResultModal.classList.add('hidden');
@@ -1451,15 +1594,15 @@ export class HUDManager {
     if (isHome) return;
 
     // Top Bar & Status
-    this.elPhasePill.textContent = snap.events.alarmActive ? snap.events.alarmType : snap.phase;
+    this.elPhasePill.textContent = t(snap.events.alarmActive ? snap.events.alarmType : snap.phase);
     this.elPhasePill.classList.toggle('alarm', snap.events.alarmActive);
     this.elStatusMsg.textContent = snap.events.statusMessage;
 
     this.elRovOverlay.classList.toggle('active', isROVMain && isActivePlay);
-    this.elRovMeta.textContent = `水深 ${Math.round(snap.depth)} m`;
+    this.elRovMeta.textContent = t('水深 {0} m', Math.round(snap.depth));
 
     this.elPipLabel.classList.toggle('hidden', !this.panelState.pip || !isActivePlay || isLanding);
-    this.elPipLabel.textContent = isROVMain ? 'PiP: SURFACE ×' : 'PiP: DEEP ROV ×';
+    this.elPipLabel.textContent = isROVMain ? t('PiP: SURFACE ×') : t('PiP: DEEP ROV ×');
 
     // Upgraded Sonar: Large Distance + Bearing Arrow + Linear Line-Graph
     this._drawLinearSonar(snap, dt);
@@ -1470,23 +1613,23 @@ export class HUDManager {
 
     const b = snap.hotspot.relBearing || 0;
     if (snap.phase === 'SEARCH') {
-      if (dropReady) this.elSonarBearing.textContent = '◎ 投下OK';
-      else if (Math.abs(b) < 0.45) this.elSonarBearing.textContent = '▲ まっすぐ';
-      else if (Math.abs(b) > 2.55) this.elSonarBearing.textContent = '▼ 後ろ方向';
-      else if (b > 0) this.elSonarBearing.textContent = '▶ 右方向';
-      else this.elSonarBearing.textContent = '◀ 左方向';
+      if (dropReady) this.elSonarBearing.textContent = t('◎ 投下OK');
+      else if (Math.abs(b) < 0.45) this.elSonarBearing.textContent = t('▲ まっすぐ');
+      else if (Math.abs(b) > 2.55) this.elSonarBearing.textContent = t('▼ 後ろ方向');
+      else if (b > 0) this.elSonarBearing.textContent = t('▶ 右方向');
+      else this.elSonarBearing.textContent = t('◀ 左方向');
     } else {
-      this.elSonarBearing.textContent = `目標 ${snap.targetDepth}m`;
+      this.elSonarBearing.textContent = t('目標 {0}m', snap.targetDepth);
     }
 
     this.elKeypadDistMini.textContent = snap.phase === 'SEARCH' ? `${dM}m` : `${Math.round(snap.depth)}m`;
     this.elActionDepthMini.textContent = `${Math.round(snap.depth)} m`;
 
     const hdg = ((Math.round((snap.ship.heading * 180) / Math.PI) % 360) + 360) % 360;
-    this.elHeading.textContent = `HDG ${String(hdg).padStart(3, '0')}°`;
-    this.elRoll.textContent = `ROLL ${snap.ship.rollDeg.toFixed(1)}°`;
+    this.elHeading.textContent = t('HDG {0}°', String(hdg).padStart(3, '0'));
+    this.elRoll.textContent = t('ROLL {0}°', snap.ship.rollDeg.toFixed(1));
     const curSpd = Math.hypot(snap.currentVec.x, snap.currentVec.z);
-    this.elCur.textContent = `CUR ${(curSpd * 1.94).toFixed(1)}kt`;
+    this.elCur.textContent = t('CUR {0}kt', (curSpd * 1.94).toFixed(1));
 
 
 
@@ -1522,10 +1665,11 @@ export class HUDManager {
     }
 
     if (snap.phase === 'LURE_HOOK' && snap.squid.lureStage === 'WRAP') {
-      this.elBtnHook.textContent = `今すぐフッキング! (${snap.squid.wrapWindowLeft.toFixed(1)}s)${isMouseInput() ? ' [スペース]' : ''}`;
+      const time = snap.squid.wrapWindowLeft.toFixed(1);
+      this.elBtnHook.textContent = isMouseInput() ? t('今すぐフッキング! ({0}s) [スペース]', time) : t('今すぐフッキング! ({0}s)', time);
       this.elBtnHook.classList.add('glow-red');
     } else {
-      this.elBtnHook.textContent = isMouseInput() ? 'フッキング [スペース]' : 'フッキング';
+      this.elBtnHook.textContent = isMouseInput() ? t('フッキング [スペース]') : t('フッキング');
     }
 
     if (snap.phase === 'FIGHT') {
@@ -1547,14 +1691,14 @@ export class HUDManager {
       const allOK = rollOK && squidOK && waveOK;
 
       const stageNames = ['スリング確保', 'クレーン巻上', '甲板収容'];
-      const stepName = stageNames[Math.min(2, snap.landing.stage)];
+      const stepName = t(stageNames[Math.min(2, snap.landing.stage)]);
 
-      this.elCraneStageLbl.textContent = `STEP ${snap.landing.stage} / 3`;
-      this.elCondRoll.textContent = rollOK ? 'ロール OK' : '横揺れ危険!';
+      this.elCraneStageLbl.textContent = t('STEP {0} / 3', snap.landing.stage);
+      this.elCondRoll.textContent = rollOK ? t('ロール OK') : t('横揺れ危険!');
       this.elCondRoll.classList.toggle('ok', rollOK);
-      this.elCondSquid.textContent = squidOK ? 'イカ静止 OK' : '抵抗中! 待て';
+      this.elCondSquid.textContent = squidOK ? t('イカ静止 OK') : t('抵抗中! 待て');
       this.elCondSquid.classList.toggle('ok', squidOK);
-      this.elCondWave.textContent = waveOK ? '波頂点 OK!' : '波待ち...';
+      this.elCondWave.textContent = waveOK ? t('波頂点 OK!') : t('波待ち...');
       this.elCondWave.classList.toggle('ok', waveOK);
 
       // Wave timing bar marker position (waveSin -1..+1 -> 5%..95%)
@@ -1563,16 +1707,16 @@ export class HUDManager {
       this.elWaveMarker.classList.toggle('in-zone', waveOK);
 
       this.elBtnCraneBig.textContent = allOK
-        ? `今だ！クレーン作動！（${stepName}）`
-        : `待機中… (${stepName} ${snap.landing.stage}/3)`;
-      this.elBtnCrane.textContent = `クレーン (${snap.landing.stage}/3)`;
+        ? t('今だ！クレーン作動！（{0}）', stepName)
+        : t('待機中… ({0} {1}/3)', stepName, snap.landing.stage);
+      this.elBtnCrane.textContent = t('クレーン ({0}/3)', snap.landing.stage);
 
       if (allOK) {
         this.elBtnCraneBig.classList.add('glow-gold');
         this.elBtnCrane.classList.add('glow-gold');
       }
     } else {
-      this.elBtnCrane.textContent = 'クレーン (0/3)';
+      this.elBtnCrane.textContent = t('クレーン ({0}/3)', 0);
     }
   }
 }

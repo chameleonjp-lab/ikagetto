@@ -1,3 +1,5 @@
+import { translateComment } from '../i18n/runtime.js';
+
 // =============================================================================
 // 6-Tier Giant Squid Specimen Generator, Score Formula & 300 Comments (100 x 3)
 // =============================================================================
@@ -470,7 +472,7 @@ export const COOKING_COMMENTS_100 = [
 
 export function getCommentForScore(score, type = 'fishing') {
   const idx = Math.max(0, Math.min(99, Math.floor(score / 500)));
-  if (type === 'butcher') return BUTCHER_COMMENTS_100[idx];
-  if (type === 'cooking') return COOKING_COMMENTS_100[idx];
-  return FISHING_COMMENTS_100[idx];
+  if (type === 'butcher') return translateComment('butcher', idx, BUTCHER_COMMENTS_100[idx]);
+  if (type === 'cooking') return translateComment('cooking', idx, COOKING_COMMENTS_100[idx]);
+  return translateComment('fishing', idx, FISHING_COMMENTS_100[idx]);
 }

@@ -1,4 +1,7 @@
 import { ResultFXManager } from '../ui/ResultFX.js';
+import { ResultRanking } from '../ui/FlowMenuManager.js';
+import { localizeHtml, t } from '../i18n/runtime.js';
+import { finishRankingRun, startRankingRun } from '../ranking/client.js';
 import * as THREE from 'three';
 import { CookingStageModels } from '../models/CookingModels.js';
 import { getCommentForScore } from '../data/SquidTiersAndComments.js';
@@ -103,7 +106,7 @@ export class AjilloCookingGame {
   _buildUI() {
     this.el = document.createElement('div');
     this.el.className = 'mg-overlay hidden';
-    this.el.innerHTML = `
+    this.el.innerHTML = localizeHtml(`
       <canvas class="mg-gesture-canvas" id="cook-guide-canvas"></canvas>
       <div class="mg-top-card" id="cook-top">
         <div class="mg-step-badge" id="cook-step-title">調理工程 1 / 10</div>
@@ -123,15 +126,18 @@ export class AjilloCookingGame {
             <span class="mg-res-rank" id="cook-res-rank">S</span>
             <span class="mg-res-score" id="cook-res-score">0 点</span>
           </div>
+          <div class="result-ranking" aria-live="polite">
+            <span data-result-position></span><span data-result-play-count></span>
+          </div>
           <div class="mg-res-comment" id="cook-res-comment">--</div>
           <div class="mg-res-dots" id="cook-res-dots"></div>
         </div>
         <div class="mg-result-footer">
-          <button type="button" class="mg-btn x-btn" id="cook-btn-x">Xでシェア</button>
+          <button type="button" class="mg-btn x-btn" id="cook-btn-x" data-result-share>Xでシェア</button>
           <button type="button" class="mg-btn" id="cook-btn-home">ホームに戻る</button>
         </div>
       </div>
-    `;
+    `);
     this.root.appendChild(this.el);
 
     this.guideCanvas = this.el.querySelector('#cook-guide-canvas');
@@ -147,13 +153,8 @@ export class AjilloCookingGame {
     this.elResScore = this.el.querySelector('#cook-res-score');
     this.elResComment = this.el.querySelector('#cook-res-comment');
     this.elResDots = this.el.querySelector('#cook-res-dots');
+    this.rankingResult = new ResultRanking('cooking', this.el);
 
-    this.el.querySelector('#cook-btn-x').addEventListener('click', () => {
-      if (this.callbacks.onShareX) {
-        const comment = getCommentForScore(this.totalScore, 'cooking');
-        this.callbacks.onShareX(`ダイオウイカのアヒージョ（全10工程）を作った！\n調理スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#イカゲット`);
-      }
-    });
     this.el.querySelector('#cook-btn-home').addEventListener('click', () => {
       this.hide();
       if (this.callbacks.onReturnHome) this.callbacks.onReturnHome();
@@ -298,13 +299,14 @@ export class AjilloCookingGame {
     this.totalScore = Math.min(50000, this.totalScore + pts);
     if (isGood) this.audio?.playStepOK(); else this.audio?.playStepNG();
 
-    this.elFeedback.textContent = msg;
+    this.elFeedback.textContent = t(msg);
     this.elFeedback.className = `mg-feedback show ${isGood ? 'ok' : 'ng'}`;
     this.feedbackTimer = 1.05;
 
     this.stepIdx++;
     if (this.stepIdx >= COOK_STEPS_10.length) {
-      setTimeout(() => { if (this.active) this._enterResult(); }, 850);
+      const run = this.rankingRun;
+      setTimeout(() => { if (this.active && this.rankingRun === run) this._enterResult(); }, 850);
     } else {
       this._initCurrentStep();
     }
@@ -325,8 +327,8 @@ export class AjilloCookingGame {
 
     this.models.setStepScene(this.stepIdx);
     const step = COOK_STEPS_10[this.stepIdx];
-    this.elStepTitle.textContent = `調理 ${this.stepIdx + 1} / ${COOK_STEPS_10.length} ・ ${step.title}`;
-    this.elHint.textContent = step.hint;
+    this.elStepTitle.textContent = t('調理 {0} / {1} ・ {2}', this.stepIdx + 1, COOK_STEPS_10.length, t(step.title));
+    this.elHint.textContent = t(step.hint);
     this._refreshRuleChip();
     // The swipe basics were already taught in the butcher game; skip repeating them.
     const skipIntro = step.coach === 'intro' && GuideStore.has('butcher:intro');
@@ -340,12 +342,13 @@ export class AjilloCookingGame {
       this.elRule.classList.add('hidden');
       return;
     }
-    this.elRule.textContent = step.rule === 'count' ? `あと ${step.count - this.subCount} 回` : step.rule;
+    this.elRule.textContent = step.rule === 'count' ? t('あと {0} 回', step.count - this.subCount) : t(step.rule);
     this.elRule.classList.toggle('warn', !!step.ruleWarn);
     this.elRule.classList.remove('hidden');
   }
 
   _enterResult() {
+    if (this.mode !== 'PLAY') return;
     this.mode = 'RESULT';
     this.coach.cancel();
     this.coach.markDone();
@@ -360,16 +363,21 @@ export class AjilloCookingGame {
     ResultFXManager.applyCardStyle(this.el.querySelector('#cook-res-card'), this.elResRank, this.el.querySelector('#cook-res-ribbon'), rank);
     ResultFXManager.animateScore(this.elResScore, this.totalScore, 750);
     this.resultFX?.start(rank);
-    this.elResComment.textContent = getCommentForScore(this.totalScore, 'cooking');
+    const comment = getCommentForScore(this.totalScore, 'cooking');
+    this.elResComment.textContent = comment;
+    this.rankingResult.show({ score: this.totalScore, comment }, finishRankingRun(this.rankingRun, this.totalScore), this.rankingPlayerName);
     this.elResDots.innerHTML = this.cookResults.map((v) => {
       const ok = v === true || v === 'ok';
       return `<span class="mg-dot ${ok ? 'ok' : 'ng'}">${ok ? '○' : '×'}</span>`;
     }).join('');
   }
 
-  start() {
+  start(playerName = '') {
     this.active = true;
     this.mode = 'PLAY';
+    this.rankingPlayerName = playerName;
+    this.rankingRun = startRankingRun('cooking', playerName);
+    this.rankingResult.clear();
     this.stepIdx = 0;
     this.cookResults = [];
     this.totalScore = 0;
@@ -384,6 +392,7 @@ export class AjilloCookingGame {
 
   hide() {
     this.active = false;
+    this.rankingResult.clear();
     this.pointerDown = false;
     this.coach.cancel();
     this.el.classList.add('hidden');
@@ -518,18 +527,18 @@ export class AjilloCookingGame {
       const p2 = this.subCount === 0
         ? this._project3D(1.2, 0.65, 0.75, w, h)
         : this._project3D(-1.2, 0.65, 0.75, w, h);
-      this._drawChevronTrack(ctx, p1.x, p1.y, p2.x, p2.y, `ななめになぞる（あと${step.count - this.subCount}回）`);
+      this._drawChevronTrack(ctx, p1.x, p1.y, p2.x, p2.y, t('ななめになぞる（あと{0}回）', step.count - this.subCount));
     } else if (step.type === 'slice_arm') {
       const targetX = -0.90 + this.subCount * 0.45;
       const p1 = this._project3D(targetX, 0.65, -0.65, w, h);
       const p2 = this._project3D(targetX, 0.65, 0.95, w, h);
-      this._drawChevronTrack(ctx, p1.x, p1.y, p2.x, p2.y, `縦になぞる（あと${step.count - this.subCount}切れ）`);
+      this._drawChevronTrack(ctx, p1.x, p1.y, p2.x, p2.y, t('縦になぞる（あと{0}切れ）', step.count - this.subCount));
     } else if (step.id === 'veggies') {
       const vx = this.subCount === 0 ? -1.05 : (this.subCount === 1 ? 0.0 : 1.05);
       const vLabel = this.subCount === 0 ? '唐辛子を切る' : (this.subCount === 1 ? 'きのこを切る' : 'トマトを切る');
       const p1 = this._project3D(vx, 0.55, -0.55, w, h);
       const p2 = this._project3D(vx, 0.55, 0.95, w, h);
-      this._drawChevronTrack(ctx, p1.x, p1.y, p2.x, p2.y, vLabel);
+      this._drawChevronTrack(ctx, p1.x, p1.y, p2.x, p2.y, t(vLabel));
     } else if (step.type === 'multi_tap') {
       const center = this._project3D(0, 0.35, 0.15, w, h);
       ctx.strokeStyle = `rgba(255, 224, 102, ${0.55 + 0.45 * pulse})`;
@@ -545,23 +554,23 @@ export class AjilloCookingGame {
       ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(adaptText(`タップ！（あと${step.count - this.subCount}回）`), center.x, center.y - 53);
+      ctx.fillText(adaptText(t('タップ！（あと{0}回）', step.count - this.subCount)), center.x, center.y - 53, 156);
     } else if (step.type === 'swipe_up') {
-      this._drawChevronTrack(ctx, w * 0.5, h * 0.76, w * 0.5, h * 0.38, '上へ一気になぞる');
+      this._drawChevronTrack(ctx, w * 0.5, h * 0.76, w * 0.5, h * 0.38, t('上へ一気になぞる'));
     } else if (step.type === 'hold_fill' || step.type === 'toss_cook') {
       if (step.type === 'toss_cook') {
         // Clear horizontal swipe arrows directly over skillet
         const pL = this._project3D(-1.25, 0.35, 0.1, w, h);
         const pR = this._project3D(1.25, 0.35, 0.1, w, h);
         const dir = Math.sin(this.time * 4.5) >= 0;
-        this._drawChevronTrack(ctx, dir ? pL.x : pR.x, pL.y, dir ? pR.x : pL.x, pR.y, '左右に動かして混ぜる');
+        this._drawChevronTrack(ctx, dir ? pL.x : pR.x, pL.y, dir ? pR.x : pL.x, pR.y, t('左右に動かして混ぜる'));
       } else if (!this.pointerDown) {
         const pOil = this._project3D(0.5, 0.5, 0, w, h);
         ctx.fillStyle = 'rgba(8, 16, 30, 0.88)';
         ctx.beginPath(); ctx.roundRect(pOil.x - 95, pOil.y - 20, 190, 34, 17); ctx.fill();
         ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 1.8; ctx.stroke();
         ctx.fillStyle = '#ffe066'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('画面を長押しして注ぐ', pOil.x, pOil.y - 3);
+        ctx.fillText(t('画面を長押しして注ぐ'), pOil.x, pOil.y - 3, 174);
       }
 
       const bw = Math.min(320, w * 0.80), bh = 30;
@@ -594,7 +603,7 @@ export class AjilloCookingGame {
         ? '★ 今だ！指をはなそう ★'
         : (val > maxOk ? (step.type === 'hold_fill' ? '入れすぎ！溢れる！' : '焼きすぎ！焦げる！')
           : (step.type === 'hold_fill' ? '長押しで注ぐ → 緑で指をはなす' : '左右に動かして加熱 → 緑で指をはなす'));
-      ctx.fillText(adaptText(statusText), w * 0.5, by - 12);
+      ctx.fillText(adaptText(t(statusText)), w * 0.5, by - 12, w - 20);
     } else if (step.type === 'heat_keep') {
       const bw = Math.min(320, w * 0.80), bh = 30;
       const bx = (w - bw) * 0.5, by = h * 0.76;
@@ -615,7 +624,7 @@ export class AjilloCookingGame {
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`弱火キープ：${Math.min(100, Math.round((this.heatGoodTime / 2.4) * 100))}%`, w * 0.5, by - 12);
+      ctx.fillText(t('弱火キープ：{0}%', Math.min(100, Math.round((this.heatGoodTime / 2.4) * 100))), w * 0.5, by - 12, w - 20);
     } else if (step.type === 'mill_circle') {
       const cx = w * 0.5, cy = h * 0.50, rad = Math.min(w, h) * 0.18;
       const turns = this.millSweep / (Math.PI * 2);
@@ -641,7 +650,8 @@ export class AjilloCookingGame {
       ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(adaptText(inZone ? `${turns.toFixed(1)}回転 — 今だ！指をはなそう` : `${turns.toFixed(1)} 回転（目標 3.0〜4.0回転）`), cx, cy + rad + 32);
+      const turnText = inZone ? t('{0}回転 — 今だ！指をはなそう', turns.toFixed(1)) : t('{0} 回転（目標 3.0〜4.0回転）', turns.toFixed(1));
+      ctx.fillText(adaptText(turnText), cx, cy + rad + 32, 234);
     }
   }
 

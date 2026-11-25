@@ -10,7 +10,7 @@ import { applySquidTierVisuals } from './models/GiantSquidTiers.js';
 import { FishingResultScene } from './scenes/FishingResultScene.js';
 import { ButcherGame } from './games/ButcherGame.js';
 import { AjilloCookingGame } from './games/AjilloCookingGame.js';
-import { FlowMenuManager, shareToX } from './ui/FlowMenuManager.js';
+import { FlowMenuManager } from './ui/FlowMenuManager.js';
 import { MiniGameAudio } from './audio/MiniGameAudio.js';
 import { ensureAudioContext, unlockAudio, installAudioUnlock, onAudioContextCreated } from './audio/SharedAudio.js';
 import { applyStudioEnvironment } from './models/StudioEnv.js';
@@ -20,6 +20,7 @@ import { GuideStore } from './ui/MiniGameCoach.js';
 import { installJapaneseLineBreak } from './ui/JaLineBreak.js';
 import { installDeviceProfile } from './ui/DeviceProfile.js';
 import { installTouchGuard, setBackGuard } from './ui/TouchGuard.js';
+import { finishRankingRun, getPlayerName, startRankingRun } from './ranking/client.js';
 
 // Tag <html> with the device type (phone / tablet / PC / dual screen) and input (touch / mouse).
 installDeviceProfile();
@@ -228,6 +229,9 @@ let manualSwapToggle = false;
 let prevPhase = 'HOME';
 let inspectCamInitialized = false;
 let activeAppMode = 'FISHING'; // 'FISHING' | 'FISHING_RESULT' | 'BUTCHER' | 'COOKING'
+let fishingPlayerName = '';
+let fishingRun = null;
+let fishingRanking = null;
 
 const miniAudio = new MiniGameAudio();
 const resultFX = new ResultFXManager(appContainer);
@@ -238,31 +242,39 @@ tutorial.onPauseChange = (paused) => { if (paused) hud.releaseAllInputs(); };
 tutorial.onBeforeStep = (step) => { if (step.needGauges) hud.openGauges(); };
 const fishingResultScene = new FishingResultScene();
 
+function startFishing() {
+  audio.initOnGesture();
+  activeAppMode = 'FISHING';
+  userSwappedInFight = false;
+  manualSwapToggle = false;
+  inspectCamInitialized = false;
+  fishingPlayerName = getPlayerName();
+  fishingRun = startRankingRun('fishing', fishingPlayerName);
+  fishingRanking = null;
+  const snapshot = engine.startGame();
+  applySquidTierVisuals(squid, snapshot.specimen);
+}
+
 const flowMenus = new FlowMenuManager(appContainer, {
   onStartButcher: () => {
     activeAppMode = 'BUTCHER';
     hud.hideAll();
     flowMenus.hideFishingResult();
-    butcherGame.start();
+    butcherGame.start(fishingPlayerName);
   },
   onStartCooking: () => {
     activeAppMode = 'COOKING';
     hud.hideAll();
     flowMenus.hideFishingResult();
-    ajilloGame.start();
+    ajilloGame.start(fishingPlayerName);
   },
   onReplayFishing: () => {
-    activeAppMode = 'FISHING';
     tutorial.closeAll();
     butcherGame.hide();
     ajilloGame.hide();
     flowMenus.hideFishingResult();
     flowMenus.hideMenu();
-    userSwappedInFight = false;
-    manualSwapToggle = false;
-    inspectCamInitialized = false;
-    const s = engine.startGame();
-    applySquidTierVisuals(squid, s.specimen);
+    startFishing();
   },
   onGoHome: () => {
     activeAppMode = 'FISHING';
@@ -278,7 +290,6 @@ const flowMenus = new FlowMenuManager(appContainer, {
 
 
 const butcherGame = new ButcherGame(appContainer, miniAudio, {
-  onShareX: (txt) => shareToX(txt),
   onComplete: () => {
     flowMenus.showPostButcherMenu();
   }
@@ -288,7 +299,6 @@ applyStudioEnvironment(renderer, fishingResultScene.scene, false);
 applyStudioEnvironment(renderer, butcherGame.scene, false);
 
 const ajilloGame = new AjilloCookingGame(appContainer, miniAudio, {
-  onShareX: (txt) => shareToX(txt),
   onReturnHome: () => {
     activeAppMode = 'FISHING';
     engine.reset();
@@ -300,13 +310,7 @@ applyStudioEnvironment(renderer, ajilloGame.scene, true);
 
 const hud = new HUDManager(appContainer, {
   onStartGame: () => {
-    audio.initOnGesture();
-    activeAppMode = 'FISHING';
-    userSwappedInFight = false;
-    manualSwapToggle = false;
-    inspectCamInitialized = false;
-    const s = engine.startGame();
-    applySquidTierVisuals(squid, s.specimen);
+    if (engine.phase === 'HOME') startFishing();
   },
   onOpenResult: () => {
     engine.openResultScreen();
@@ -314,16 +318,10 @@ const hud = new HUDManager(appContainer, {
     activeAppMode = 'FISHING_RESULT';
     hud.hideAll();
     fishingResultScene.configure(s.specimen);
-    flowMenus.showFishingResult(s.result);
+    flowMenus.showFishingResult(s.result, fishingRanking, fishingPlayerName);
   },
   onRetry: () => {
-    audio.initOnGesture();
-    activeAppMode = 'FISHING';
-    userSwappedInFight = false;
-    manualSwapToggle = false;
-    inspectCamInitialized = false;
-    const s = engine.startGame();
-    applySquidTierVisuals(squid, s.specimen);
+    if (engine.phase === 'GAMEOVER' || engine.phase === 'INSPECT') startFishing();
   },
   onSwapView: () => {
     audio.initOnGesture();
@@ -421,6 +419,9 @@ function animate(now) {
   const wave = oceanEnv.getWaveStateAt(engine.ship.x, engine.ship.z, totalTime);
   const simDt = tutorial.isPaused() ? 0 : dt;
   const snap = engine.update(simDt, controls, wave);
+  if (snap.result?.success && fishingRun && !fishingRanking) {
+    fishingRanking = finishRankingRun(fishingRun, snap.result.score);
+  }
 
   // Offer "show the first-play guide again" on the home screen once any guide was seen.
   if (snap.phase === 'HOME' && prevPhase !== 'HOME') hud.setGuideReplayVisible(GuideStore.anySeen());

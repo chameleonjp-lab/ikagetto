@@ -1,3 +1,4 @@
+import { localizeHtml, t, tHtml } from '../i18n/runtime.js';
 // First-play guidance shared by the fishing tutorial and the butcher / cooking mini-games.
 //
 // Design rules (kept deliberately small so the guide never gets in the way of play):
@@ -191,11 +192,11 @@ export class MiniGameCoach {
 
   _show(card) {
     this.card = card;
-    this.elDemo.innerHTML = DEMOS[card.demo] || '';
+    this.elDemo.innerHTML = localizeHtml(DEMOS[card.demo] || '');
     this.elDemo.classList.toggle('hidden', !DEMOS[card.demo]);
-    this.elTitle.textContent = card.title;
-    this.elBody.innerHTML = card.html;
-    this.elOk.textContent = '分かった';
+    this.elTitle.textContent = t(card.title);
+    this.elBody.innerHTML = tHtml(card.html);
+    this.elOk.textContent = t('分かった');
     this.el.classList.remove('hidden');
     this.open = true;
     if (this.onChange) this.onChange(true);
@@ -213,7 +214,7 @@ export class MiniGameCoach {
   _buildDOM() {
     this.el = document.createElement('div');
     this.el.className = 'coach-layer hidden';
-    this.el.innerHTML = `
+    this.el.innerHTML = localizeHtml(`
       <div class="coach-card" role="dialog" aria-live="polite">
         <div class="coach-head">
           <div class="coach-demo"></div>
@@ -226,7 +227,7 @@ export class MiniGameCoach {
         <button type="button" class="coach-ok">分かった</button>
         <div class="coach-note">この説明が出ている間、ゲームは止まっています</div>
       </div>
-    `;
+    `);
     this.root.appendChild(this.el);
     this.elDemo = this.el.querySelector('.coach-demo');
     this.elTitle = this.el.querySelector('.coach-title');

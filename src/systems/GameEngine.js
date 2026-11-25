@@ -1,3 +1,4 @@
+import { t } from '../i18n/runtime.js';
 import { generateSquidSpecimen, calculateFishingScore, getCommentForScore } from '../data/SquidTiersAndComments.js';
 // Pure JavaScript Simulation Engine (Rendering-Independent)
 // Phases: HOME, SEARCH, LURE_HOOK, FIGHT, LANDING, CAPTURE_SCENE, INSPECT, SUCCESS, GAMEOVER
@@ -158,7 +159,7 @@ export class GameEngine {
       lineSnap: false,
       alarmActive: false,
       alarmType: '',
-      statusMessage: '深海調査船 出港待機中'
+      statusMessage: t('深海調査船 出港待機中')
     };
 
     this.failureCode = null;
@@ -168,7 +169,7 @@ export class GameEngine {
   startGame() {
     this.reset();
     this.phase = 'SEARCH';
-    this.events.statusMessage = 'ソナー反応地点へ操船し、22m以内で「↓ 繰出/投下」を押してください。';
+    this.events.statusMessage = t('ソナー反応地点へ操船し、22m以内で「↓ 繰出/投下」を押してください。');
     return this.getSnapshot();
   }
 
@@ -189,12 +190,12 @@ export class GameEngine {
     this.result = {
       success: false,
       code,
-      title: detail.title,
-      reason: detail.reason,
-      advice: detail.advice,
+      title: t(detail.title),
+      reason: t(detail.reason),
+      advice: t(detail.advice),
       elapsedTime: this.elapsedTime
     };
-    this.events.statusMessage = detail.title;
+    this.events.statusMessage = this.result.title;
   }
 
   _beginCaptureScene() {
@@ -222,7 +223,7 @@ export class GameEngine {
       comment: getCommentForScore(scored.score, 'fishing'),
       specimen: this.specimen
     };
-    this.events.statusMessage = 'ダイオウイカ揚収成功！クレーンで甲板へ引き揚げています...';
+    this.events.statusMessage = t('ダイオウイカ揚収成功！クレーンで甲板へ引き揚げています...');
   }
 
   _updateVesselPhysics(dt, controls, waveState) {
@@ -288,16 +289,16 @@ export class GameEngine {
       if (distToSpot < 22 || this.depth > 5) {
         this.depth = Math.min(this.targetDepth, this.depth + dt * 145);
       } else {
-        this.events.statusMessage = `ポイントまで残り ${Math.round(distToSpot)}m。22m以内に船を寄せてから投下してください。`;
+        this.events.statusMessage = t('ポイントまで残り {0}m。22m以内に船を寄せてから投下してください。', Math.round(distToSpot));
       }
     } else if (controls.winchPower > 0.1) {
       this.depth = Math.max(0, this.depth - dt * 80);
     }
 
     if (distToSpot < 22 && this.depth < 10) {
-      this.events.statusMessage = '反応真上に到達！光っている「↓ 繰出/投下」を長押しして仕掛けを降ろしてください！';
+      this.events.statusMessage = t('反応真上に到達！光っている「↓ 繰出/投下」を長押しして仕掛けを降ろしてください！');
     } else if (this.depth > 10) {
-      this.events.statusMessage = `仕掛け降下中... 水深 ${Math.round(this.depth)}m / 目標 ${this.targetDepth}m`;
+      this.events.statusMessage = t('仕掛け降下中... 水深 {0}m / 目標 {1}m', Math.round(this.depth), this.targetDepth);
     }
 
     if (this.depth >= 600) {
@@ -306,7 +307,7 @@ export class GameEngine {
       this.squid.state = 'CRUISE';
       this.squid.stageTimer = 0;
       this.squid.distanceToBait = 7.4;
-      this.events.statusMessage = '深海到達！ダイオウイカが接近中。抱え込み（WRAP）の瞬間に「フッキング」を押してください！';
+      this.events.statusMessage = t('深海到達！ダイオウイカが接近中。抱え込み（WRAP）の瞬間に「フッキング」を押してください！');
     }
   }
 
@@ -319,12 +320,12 @@ export class GameEngine {
 
     if (this.lightPower >= 0.70) {
       this.events.alarmActive = true;
-      this.events.alarmType = '警戒中！静かに待て！';
+      this.events.alarmType = t('警戒中！静かに待て！');
       if (s.stageTimer > 1.8 && s.lureStage !== 'FLEE') {
         s.lureStage = 'FLEE';
         s.state = 'FLARE';
         s.stageTimer = 0;
-        this.events.statusMessage = 'ダイオウイカが警戒（FLARE）しています！静かに待ちましょう！';
+        this.events.statusMessage = t('ダイオウイカが警戒（FLARE）しています！静かに待ちましょう！');
       }
     }
 
@@ -337,7 +338,7 @@ export class GameEngine {
         s.lureStage = 'HOVER';
         s.state = 'HOVER';
         s.stageTimer = 0;
-        this.events.statusMessage = 'ダイオウイカが餌の目の前でホバリング中...';
+        this.events.statusMessage = t('ダイオウイカが餌の目の前でホバリング中...');
       }
     } else if (s.lureStage === 'HOVER') {
       s.state = 'HOVER';
@@ -346,7 +347,7 @@ export class GameEngine {
         s.lureStage = 'PROBE';
         s.state = 'PROBE';
         s.stageTimer = 0;
-        this.events.statusMessage = '腕で餌を探っています（PROBE）！早合わせせず待ってください！';
+        this.events.statusMessage = t('腕で餌を探っています（PROBE）！早合わせせず待ってください！');
       }
     } else if (s.lureStage === 'PROBE') {
       s.state = 'PROBE';
@@ -355,14 +356,14 @@ export class GameEngine {
         s.lureStage = 'FLEE';
         s.state = 'FLARE';
         s.stageTimer = 0;
-        this.events.statusMessage = '早合わせ！ダイオウイカが驚いて逃亡態勢に入りました！';
+        this.events.statusMessage = t('早合わせ！ダイオウイカが驚いて逃亡態勢に入りました！');
         return;
       }
       if (s.stageTimer >= 2.6) {
         s.lureStage = 'STRIKE';
         s.state = 'STRIKE';
         s.stageTimer = 0;
-        this.events.statusMessage = '触腕を高速射出（STRIKE）！餌を掴みました！';
+        this.events.statusMessage = t('触腕を高速射出（STRIKE）！餌を掴みました！');
       }
     } else if (s.lureStage === 'STRIKE') {
       s.state = 'STRIKE';
@@ -373,7 +374,7 @@ export class GameEngine {
         s.state = 'WRAP';
         s.stageTimer = 0;
         s.wrapWindowLeft = 2.6 + this.stats.hookWindowBonus;
-        this.events.statusMessage = '今だ！抱え込み（WRAP）確認！光る「フッキング」を押せ！';
+        this.events.statusMessage = t('今だ！抱え込み（WRAP）確認！光る「フッキング」を押せ！');
       }
     } else if (s.lureStage === 'WRAP') {
       s.state = 'WRAP';
@@ -385,7 +386,7 @@ export class GameEngine {
         this.squid.state = 'ESCAPE';
         this.squid.aiTimer = 2.2;
         this.tension = 46;
-        this.events.statusMessage = 'フッキング成功！上部計器を確認しながら「↑ 巻上」で引き上げてください！';
+        this.events.statusMessage = t('フッキング成功！上部計器を確認しながら「↑ 巻上」で引き上げてください！');
         return;
       }
       if (s.wrapWindowLeft <= 0) {
@@ -393,7 +394,7 @@ export class GameEngine {
         s.state = 'HOVER';
         s.stageTimer = 0;
         s.distanceToBait = 3.4;
-        this.events.statusMessage = 'フッキングのタイミングを逃しました！再び接近を待ちます。';
+        this.events.statusMessage = t('フッキングのタイミングを逃しました！再び接近を待ちます。');
       }
     } else if (s.lureStage === 'FLEE') {
       if (s.stageTimer < 1.1) s.state = 'FLARE';
@@ -467,11 +468,11 @@ export class GameEngine {
     if (this.tension >= 99.5) {
       this.overTensionTimer += dt;
       this.events.alarmActive = true;
-      this.events.alarmType = '張力限界！巻上を止めるか↓繰出！';
+      this.events.alarmType = t('張力限界！巻上を止めるか↓繰出！');
       if (this.overTensionTimer >= 1.15) { this._fail('LINE_BREAK'); return; }
     } else if (this.tension >= 82 && isThrashing) {
       this.events.alarmActive = true;
-      this.events.alarmType = '大暴れ中！巻上を止めるか↓繰出！';
+      this.events.alarmType = t('大暴れ中！巻上を止めるか↓繰出！');
       this.overTensionTimer = Math.max(0, this.overTensionTimer - dt * 1.4);
     } else {
       this.overTensionTimer = Math.max(0, this.overTensionTimer - dt * 1.8);
@@ -486,7 +487,7 @@ export class GameEngine {
     }
     if (this.winchTemp >= 95) {
       this.events.alarmActive = true;
-      this.events.alarmType = 'ウインチ過熱警告！';
+      this.events.alarmType = t('ウインチ過熱警告！');
     }
     if (this.winchTemp >= 115) { this._fail('WINCH_OVERHEAT'); return; }
 
@@ -495,13 +496,13 @@ export class GameEngine {
     this.depth = Math.max(0, Math.min(920, this.depth - (reelSpeed - stripSpeed) * dt));
 
     if (s.state === 'ESCAPE') {
-      this.events.statusMessage = 'ダイオウイカが大暴れ！張力急上昇！「↑ 巻上」を止めるか「↓ 繰出」で逃がせ！';
+      this.events.statusMessage = t('ダイオウイカが大暴れ！張力急上昇！「↑ 巻上」を止めるか「↓ 繰出」で逃がせ！');
     } else if (this.winchTemp >= 95) {
-      this.events.statusMessage = 'ウインチ油圧温度が危険域！巻上を止めて冷却してください！';
+      this.events.statusMessage = t('ウインチ油圧温度が危険域！巻上を止めて冷却してください！');
     } else if (s.stamina < 30) {
-      this.events.statusMessage = 'イカの体力が低下！一気に「↑ 巻上」で引き上げましょう！';
+      this.events.statusMessage = t('イカの体力が低下！一気に「↑ 巻上」で引き上げましょう！');
     } else {
-      this.events.statusMessage = `ファイト中 — 残り水深 ${Math.round(this.depth)}m（追従軽減 ${Math.round(this.followBonus * 100)}%）`;
+      this.events.statusMessage = t('ファイト中 — 残り水深 {0}m（追従軽減 {1}%）', Math.round(this.depth), Math.round(this.followBonus * 100));
     }
 
     if (this.depth <= 0.5) {
@@ -512,7 +513,7 @@ export class GameEngine {
       this.squid.surfaceResisting = false;
       this.squid.surfaceResistTimer = 3.2;
       this.squid.state = 'HOVER';
-      this.events.statusMessage = '海面到達！ロール・静止・波頂点の3条件が揃って大型クレーンボタンが光ったら押してください！';
+      this.events.statusMessage = t('海面到達！ロール・静止・波頂点の3条件が揃って大型クレーンボタンが光ったら押してください！');
     }
   }
 
@@ -535,7 +536,7 @@ export class GameEngine {
     const absRoll = Math.abs(this.ship.rollDeg);
     if (absRoll >= 18) {
       this.events.alarmActive = true;
-      this.events.alarmType = '横揺れ危険（18°超）！';
+      this.events.alarmType = t('横揺れ危険（18°超）！');
     }
 
     if (controls.craneAction && l.cooldown <= 0) {
@@ -545,17 +546,17 @@ export class GameEngine {
         return;
       }
       if (!l.waveCrestReady) {
-        this.events.statusMessage = '波の谷間です！波ゲージが緑色の「波頂点OK」に入った瞬間に押してください。';
+        this.events.statusMessage = t('波の谷間です！波ゲージが緑色の「波頂点OK」に入った瞬間に押してください。');
         return;
       }
 
       l.stage += 1;
       if (l.stage === 1) {
         l.craneNormalized = 0.95;
-        this.events.statusMessage = '第1段階完了（スリング確保）！次の波頂点でクレーン巻上！';
+        this.events.statusMessage = t('第1段階完了（スリング確保）！次の波頂点でクレーン巻上！');
       } else if (l.stage === 2) {
         l.craneNormalized = 0.45;
-        this.events.statusMessage = '第2段階完了（クレーン巻上）！最後の波頂点で甲板収容！';
+        this.events.statusMessage = t('第2段階完了（クレーン巻上）！最後の波頂点で甲板収容！');
       } else if (l.stage >= 3) {
         l.craneNormalized = 0.08;
         this._beginCaptureScene();
@@ -567,7 +568,7 @@ export class GameEngine {
     this.captureTimer += dt;
     if (this.captureTimer >= 4.2) {
       this.phase = 'INSPECT';
-      this.events.statusMessage = '釣り上げたダイオウイカを自由に360°回転・拡大して観察できます！';
+      this.events.statusMessage = t('釣り上げたダイオウイカを自由に360°回転・拡大して観察できます！');
     }
   }
 

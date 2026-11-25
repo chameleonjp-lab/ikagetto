@@ -1,4 +1,7 @@
 import { ResultFXManager } from '../ui/ResultFX.js';
+import { ResultRanking } from '../ui/FlowMenuManager.js';
+import { localizeHtml, t } from '../i18n/runtime.js';
+import { finishRankingRun, startRankingRun } from '../ranking/client.js';
 import * as THREE from 'three';
 import { ButcherStageModels } from '../models/ButcherModels.js';
 import { getCommentForScore } from '../data/SquidTiersAndComments.js';
@@ -145,6 +148,7 @@ export class ButcherGame {
         .mg-res-rank { font-size: clamp(28px, 7vw, 40px); font-weight: 900; color: #ffd454; }
         .mg-res-score { font-size: clamp(22px, 6vw, 34px); font-weight: 900; color: #7ce8ff; }
         .mg-res-comment { font-size: 13px; color: #e8f5ff; margin-top: 6px; line-height: 1.45; }
+        .mg-res-card .result-ranking { justify-content: center; }
         .mg-res-dots { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
         .mg-dot { width: 15px; height: 15px; border-radius: 50%; font-size: 9px; line-height: 15px; font-weight: 800; }
         .mg-dot.ok { background: rgba(61, 224, 138, 0.28); border: 1px solid #3de08a; color: #9effcc; }
@@ -154,18 +158,22 @@ export class ButcherGame {
           display: grid; grid-template-columns: 1fr 1fr; gap: 10px; pointer-events: auto;
         }
         .mg-btn {
-          padding: 13px 10px; border-radius: 10px; border: 1px solid rgba(130, 220, 255, 0.5);
+          min-height: 44px; padding: 10px; border-radius: 10px; border: 1px solid rgba(130, 220, 255, 0.5);
           background: linear-gradient(135deg, #1769a8, #24a8d4); color: #fff;
           font-size: 14px; font-weight: 800; cursor: pointer; font-family: inherit;
         }
         .mg-btn.x-btn { background: linear-gradient(135deg, #14171c, #272d36); border-color: rgba(255,255,255,0.35); }
+        @media (min-width: 600px) and (max-height: 430px) {
+          .mg-res-screen { padding-top: 42px; }
+          .mg-res-card { padding-block: 8px; }
+        }
       `;
       document.head.appendChild(st);
     }
 
     this.el = document.createElement('div');
     this.el.className = 'mg-overlay hidden';
-    this.el.innerHTML = `
+    this.el.innerHTML = localizeHtml(`
       <canvas class="mg-gesture-canvas" id="butcher-guide-canvas"></canvas>
       <div class="mg-top-card" id="butcher-top">
         <div class="mg-step-badge" id="butcher-step-title">解体工程 1 / 15</div>
@@ -185,15 +193,18 @@ export class ButcherGame {
             <span class="mg-res-rank" id="butcher-res-rank">S</span>
             <span class="mg-res-score" id="butcher-res-score">0 点</span>
           </div>
+          <div class="result-ranking" aria-live="polite">
+            <span data-result-position></span><span data-result-play-count></span>
+          </div>
           <div class="mg-res-comment" id="butcher-res-comment">--</div>
           <div class="mg-res-dots" id="butcher-res-dots"></div>
         </div>
         <div class="mg-result-footer">
-          <button type="button" class="mg-btn x-btn" id="butcher-btn-x">Xでシェア</button>
+          <button type="button" class="mg-btn x-btn" id="butcher-btn-x" data-result-share>Xでシェア</button>
           <button type="button" class="mg-btn" id="butcher-btn-next">次へ</button>
         </div>
       </div>
-    `;
+    `);
     this.root.appendChild(this.el);
 
     this.guideCanvas = this.el.querySelector('#butcher-guide-canvas');
@@ -209,13 +220,8 @@ export class ButcherGame {
     this.elResScore = this.el.querySelector('#butcher-res-score');
     this.elResComment = this.el.querySelector('#butcher-res-comment');
     this.elResDots = this.el.querySelector('#butcher-res-dots');
+    this.rankingResult = new ResultRanking('butcher', this.el);
 
-    this.el.querySelector('#butcher-btn-x').addEventListener('click', () => {
-      if (this.callbacks.onShareX) {
-        const comment = getCommentForScore(this.totalScore, 'butcher');
-        this.callbacks.onShareX(`ダイオウイカ（全15工程）を解体した！\n解体スコア：${this.totalScore.toLocaleString()}点\n「${comment}」\n#イカゲット`);
-      }
-    });
     this.el.querySelector('#butcher-btn-next').addEventListener('click', () => {
       this.hide();
       if (this.callbacks.onComplete) this.callbacks.onComplete({ score: this.totalScore, stepResults: this.stepResults });
@@ -347,14 +353,15 @@ export class ButcherGame {
     this.models.applyStepVisual(this.stepIdx, ok);
     if (ok) this.audio?.playStepOK(); else this.audio?.playStepNG();
 
-    this.elFeedback.textContent = msg;
+    this.elFeedback.textContent = t(msg);
     this.elFeedback.className = `mg-feedback show ${ok ? 'ok' : 'ng'}`;
     this.feedbackTimer = 1.0;
 
     this.stepIdx++;
     this.subCount = 0;
     if (this.stepIdx >= BUTCHER_STEPS_15.length) {
-      setTimeout(() => { if (this.active) this._enterResult(); }, 850);
+      const run = this.rankingRun;
+      setTimeout(() => { if (this.active && this.rankingRun === run) this._enterResult(); }, 850);
     } else {
       this._refreshStepUI();
     }
@@ -366,15 +373,15 @@ export class ButcherGame {
       this.elRule.classList.add('hidden');
       return;
     }
-    this.elRule.textContent = step.rule === 'count' ? `あと ${step.count - this.subCount} 回` : step.rule;
+    this.elRule.textContent = step.rule === 'count' ? t('あと {0} 回', step.count - this.subCount) : t(step.rule);
     this.elRule.classList.toggle('warn', !!step.ruleWarn);
     this.elRule.classList.remove('hidden');
   }
 
   _refreshStepUI() {
     const step = BUTCHER_STEPS_15[this.stepIdx];
-    this.elStepTitle.textContent = `解体 ${this.stepIdx + 1} / ${BUTCHER_STEPS_15.length} ・ ${step.title}`;
-    this.elHint.textContent = step.hint;
+    this.elStepTitle.textContent = t('解体 {0} / {1} ・ {2}', this.stepIdx + 1, BUTCHER_STEPS_15.length, t(step.title));
+    this.elHint.textContent = t(step.hint);
     this._refreshRuleChip();
     this.touchedThisStep = false;
     this.stepIdle = 0;
@@ -387,6 +394,7 @@ export class ButcherGame {
   }
 
   _enterResult() {
+    if (this.mode !== 'PLAY') return;
     this.mode = 'RESULT';
     this.coach.cancel();
     this.coach.markDone();
@@ -401,13 +409,18 @@ export class ButcherGame {
     ResultFXManager.applyCardStyle(this.el.querySelector('#butcher-res-card'), this.elResRank, this.el.querySelector('#butcher-res-ribbon'), rank);
     ResultFXManager.animateScore(this.elResScore, this.totalScore, 750);
     this.resultFX?.start(rank);
-    this.elResComment.textContent = getCommentForScore(this.totalScore, 'butcher');
+    const comment = getCommentForScore(this.totalScore, 'butcher');
+    this.elResComment.textContent = comment;
+    this.rankingResult.show({ score: this.totalScore, comment }, finishRankingRun(this.rankingRun, this.totalScore), this.rankingPlayerName);
     this.elResDots.innerHTML = this.stepResults.map((ok) => `<span class="mg-dot ${ok ? 'ok' : 'ng'}">${ok ? '○' : '×'}</span>`).join('');
   }
 
-  start() {
+  start(playerName = '') {
     this.active = true;
     this.mode = 'PLAY';
+    this.rankingPlayerName = playerName;
+    this.rankingRun = startRankingRun('butcher', playerName);
+    this.rankingResult.clear();
     this.stepIdx = 0;
     this.subCount = 0;
     this.stepResults = [];
@@ -424,6 +437,7 @@ export class ButcherGame {
 
   hide() {
     this.active = false;
+    this.rankingResult.clear();
     this.pointerDown = false;
     this.coach.cancel();
     this.el.classList.add('hidden');
@@ -465,7 +479,7 @@ export class ButcherGame {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 15px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(adaptText('▼ 緑に重なったらタップ ▼'), w * 0.5, by - 14);
+      ctx.fillText(adaptText(t('▼ 緑に重なったらタップ ▼')), w * 0.5, by - 14);
     } else if (step.type === 'circle' && step.p0) {
       const c = this._projectToScreen(step.p0, w, h, this._projA);
       const rad = Math.min(w, h) * 0.16;
@@ -496,9 +510,9 @@ export class ButcherGame {
       ctx.stroke();
 
       // Animated sliding golden chevron arrow showing exact swipe direction!
-      const t = (this.time * 0.95) % 1.0;
-      const ax = s0.x + (s1.x - s0.x) * t;
-      const ay = s0.y + (s1.y - s0.y) * t;
+      const arrowProgress = (this.time * 0.95) % 1.0;
+      const ax = s0.x + (s1.x - s0.x) * arrowProgress;
+      const ay = s0.y + (s1.y - s0.y) * arrowProgress;
       const ang = Math.atan2(s1.y - s0.y, s1.x - s0.x);
       ctx.save();
       ctx.translate(ax, ay);
@@ -524,7 +538,7 @@ export class ButcherGame {
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`残り ${step.count - this.subCount} 回`, (s0.x + s1.x) * 0.5, Math.min(s0.y, s1.y) - 18);
+        ctx.fillText(t('残り {0} 回', step.count - this.subCount), (s0.x + s1.x) * 0.5, Math.min(s0.y, s1.y) - 18);
       }
     }
 
