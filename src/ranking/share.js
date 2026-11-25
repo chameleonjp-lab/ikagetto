@@ -3,6 +3,40 @@ import { rankText } from './messages.js';
 
 const gameUrl = 'https://chameleonjp-lab.github.io/ikagetto/';
 const tag = '#イカゲット';
+const xTextLimit = 280 - 23 - 1; // Standard post limit, minus the t.co link and separator.
+
+function shareTextWeight(text) {
+  // twitter-text v3 single-weight ranges. Counting each emoji code point is a
+  // conservative upper bound for sequences that X counts as one emoji.
+  let weight = 0;
+  for (const character of text.normalize('NFC')) {
+    const code = character.codePointAt(0);
+    const singleWeight = code <= 0x10ff || (code >= 0x2000 && code <= 0x200d) ||
+      (code >= 0x2010 && code <= 0x201f) || (code >= 0x2032 && code <= 0x2037);
+    weight += singleWeight ? 1 : 2;
+  }
+  return weight;
+}
+
+function shortenComment(comment, budget) {
+  if (typeof comment !== 'string' || !comment.trim()) return '';
+  const full = rankText('comment', { comment });
+  if (shareTextWeight(full) <= budget) return full;
+
+  const ellipsis = '…';
+  let remaining = budget - shareTextWeight(rankText('comment', { comment: ellipsis }));
+  if (remaining <= 0) return '';
+  const segments = typeof Intl.Segmenter === 'function'
+    ? new Intl.Segmenter(getLanguage(), { granularity: 'grapheme' }).segment(comment)
+    : Array.from(comment, segment => ({ segment }));
+  let shortened = '';
+  for (const { segment } of segments) {
+    remaining -= shareTextWeight(segment);
+    if (remaining < 0) break;
+    shortened += segment;
+  }
+  return shortened.trim() ? rankText('comment', { comment: shortened.trimEnd() + ellipsis }) : '';
+}
 
 export function getRankingHref() {
   return `./ranking.html?lang=${encodeURIComponent(getLanguage())}`;
@@ -28,18 +62,17 @@ export function makeShareText(mode, result = {}, includeUrl = true) {
     const position = formatPosition(result.rankPosition, result.playCount);
     lines.push(result.rankPosition > 0 ? rankText('resultPosition', { position }) : position);
 
-    if (mode === 'fishing' && result.colossalClass) {
-      // 31m-50m: lead with the size class and the exact length.
-      lines.push(rankText('colossalCatch', { class: t(result.colossalClass), length: result.lengthMeters }));
-    }
     if (mode === 'fishing') {
-      lines.push(rankText('fishingMetrics', {
+      lines.push(rankText(result.colossalClass ? 'colossalCatch' : 'fishingMetrics', {
+        class: t(result.colossalClass),
         length: result.lengthMeters,
         weight: result.weightKg,
         time: Math.round(result.elapsedTime),
       }));
     }
-    lines.push(rankText('comment', { comment: result.comment }));
+    const commentBudget = xTextLimit - shareTextWeight([...lines, tag].join('\n')) - 1;
+    const comment = shortenComment(result.comment, commentBudget);
+    if (comment) lines.push(comment);
   }
   lines.push(tag);
   if (includeUrl) lines.push(gameUrl);

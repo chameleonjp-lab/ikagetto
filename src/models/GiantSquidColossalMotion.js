@@ -40,8 +40,9 @@ export function computeColossalMotionParams(lengthMeters) {
 }
 
 export class GiantSquidColossalMotion {
-  constructor(colossalModel) {
+  constructor(colossalModel, { measurementPose = false } = {}) {
     this.model = colossalModel;
+    this.measurementPose = measurementPose;
     this.params = computeColossalMotionParams(colossalModel.profile.lengthMeters);
     this.time = 0;
 
@@ -191,7 +192,7 @@ export class GiantSquidColossalMotion {
     const jetActive = this.weights.jet + this.weights.escape * 1.25;
     const radialScale = 1.0 + breath - (jetPulse * 0.12 * jetActive) - inkSqueeze * 0.14;
     const axialScale = 1.0 - breath * 0.4 + (jetPulse * 0.055 * jetActive) + inkSqueeze * 0.07;
-    parts.mantleMesh.scale.set(radialScale, radialScale, axialScale);
+    parts.mantleMesh.scale.set(radialScale, radialScale, this.measurementPose ? 1 : axialScale);
 
     parts.funnel.rotation.y = THREE.MathUtils.clamp(-angVel * 0.7, -0.55, 0.55);
     const funnelExpand = 1.0 + Math.max(0, jetPulse) * 0.28 * jetActive + inkSqueeze * 0.45;
@@ -240,6 +241,21 @@ export class GiantSquidColossalMotion {
       }
     }
 
+    if (!this.measurementPose) this._updateTentacles(parts, p);
+
+    // ambientPulse: a faint, always-on photophore wave (used on the result screen).
+    const pulseBoost = this.weights.abyssalPulse + this.weights.flare * 0.6 + this.weights.escape * 0.5 + this.ambientPulse;
+    this.model.photophoreMaterial.color.lerpColors(this._inkColor, this._alertColor, Math.min(1, this.weights.flare + this.weights.abyssalPulse * 0.8));
+    const chroma = 0.5 + 0.5 * Math.sin(this.time * (1.5 + pulseBoost * 4.0));
+    this.model.skinMaterial.emissiveIntensity = 0.14 + chroma * (0.16 + pulseBoost * 0.45);
+
+    this._updateEyes(dt, env.cameraPos);
+    this._updateInkParticles(dt);
+    const suckerPulse = 1.0 + Math.sin(this.time * 2.8) * 0.045;
+    this.model.syncDynamicDetails(suckerPulse, this.time, pulseBoost);
+  }
+
+  _updateTentacles(parts, p) {
     let strikeStretch = 1.0;
     if (this.activeAction === 'STRIKE') {
       if (this.actionTimer < p.strikeDuration) {
@@ -266,17 +282,6 @@ export class GiantSquidColossalMotion {
         chain[s].scale.z = strikeStretch;
       }
     }
-
-    // ambientPulse: a faint, always-on photophore wave (used on the result screen).
-    const pulseBoost = this.weights.abyssalPulse + this.weights.flare * 0.6 + this.weights.escape * 0.5 + this.ambientPulse;
-    this.model.photophoreMaterial.color.lerpColors(this._inkColor, this._alertColor, Math.min(1, this.weights.flare + this.weights.abyssalPulse * 0.8));
-    const chroma = 0.5 + 0.5 * Math.sin(this.time * (1.5 + pulseBoost * 4.0));
-    this.model.skinMaterial.emissiveIntensity = 0.14 + chroma * (0.16 + pulseBoost * 0.45);
-
-    this._updateEyes(dt, env.cameraPos);
-    this._updateInkParticles(dt);
-    const suckerPulse = 1.0 + Math.sin(this.time * 2.8) * 0.045;
-    this.model.syncDynamicDetails(suckerPulse, this.time, pulseBoost);
   }
 
   _updateFinGeometry(finMesh, side, amp) {

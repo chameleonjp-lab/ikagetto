@@ -100,7 +100,9 @@ export class ResultFXManager {
       }
       #result-fx-frame.show { display: block; }
       @keyframes resFrame { from { opacity: 0.65; } to { opacity: 1; } }
-      @media (prefers-reduced-motion: reduce) { #result-fx-frame, .res-tier-ex { animation: none !important; } }
+      @media (prefers-reduced-motion: reduce) {
+        #result-fx-frame, .res-tier-ss, .res-tier-sss, .res-tier-ex { animation: none !important; }
+      }
 
       .res-rank-splus { color: #fff27a !important; text-shadow: 0 0 16px #ffb700, 0 2px 6px rgba(0,0,0,0.9); }
       .res-rank-s     { color: #ffd454 !important; text-shadow: 0 0 12px rgba(255,190,40,0.8); }
@@ -190,6 +192,9 @@ export class ResultFXManager {
   start(rank, options = {}) {
     this.stop();
     const lengthMeters = Number(options.lengthMeters) || 0;
+    this.particles = [];
+    if (lengthMeters >= 50) this.frame.classList.add('show');
+    if (lengthMeters >= 31 && globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     this.fireworks = lengthMeters >= 50;
     this.fireworkTimer = 0.2;
     if (rank === 'SS' || rank === 'SSS' || rank === 'EX') rank = 'S+';
@@ -198,8 +203,6 @@ export class ResultFXManager {
     this.canvas.classList.remove('hidden');
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
-    this.particles = [];
-
     const w = this.canvas.width, h = this.canvas.height;
     const count = rank === 'S+' ? 110 : rank === 'S' ? 75 : rank === 'A' ? 42 : rank === 'B' ? 24 : 55;
     if (lengthMeters >= 35) {
@@ -219,7 +222,6 @@ export class ResultFXManager {
         });
       }
     }
-    if (this.fireworks) this.frame.classList.add('show');
     const paletteSPlus = ['#ffd454', '#fff59d', '#ff6b9d', '#5ce1ff', '#7dffb8', '#ffffff'];
     const paletteS     = ['#ffd454', '#ffaa33', '#5ce1ff', '#ffffff'];
     const paletteA     = ['#3de08a', '#7ce8ff', '#ffe066'];

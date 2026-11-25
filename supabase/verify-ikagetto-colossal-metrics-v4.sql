@@ -69,11 +69,26 @@ BEGIN
     IF SQLERRM <> 'ikagetto_invalid_finish' THEN RAISE; END IF;
   END;
 
-  -- 1-30m catches and legacy (unmeasured) fishing scores still work as before.
+  -- 1-30m catches stay visible, and unmeasured fishing scores share the new limit.
   PERFORM public.ikagetto_start_v1(v_small, 'fishing', 'Small');
   PERFORM public.ikagetto_fishing_finish_v2(v_small, 42000, 16, 1600, 65321);
   PERFORM public.ikagetto_start_v1(v_legacy, 'fishing', 'Legacy');
-  PERFORM public.ikagetto_finish_v1(v_legacy, 30000);
+  BEGIN
+    PERFORM public.ikagetto_finish_v1(v_legacy, 80001);
+    RAISE EXCEPTION 'Legacy fishing scores above 80000 must be refused';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    IF SQLERRM <> 'ikagetto_invalid_finish' THEN RAISE; END IF;
+  END;
+  SELECT r.* INTO STRICT v_row FROM public.ikagetto_finish_v1(v_legacy, 80000) AS r;
+  IF v_row.rank IS DISTINCT FROM 1::bigint THEN
+    RAISE EXCEPTION 'A maximum legacy fishing score must tie for first: %', v_row;
+  END IF;
+  SELECT b.* INTO STRICT v_row FROM public.ikagetto_board_page_v3('fishing', 0, 10) AS b
+    WHERE b.display_name = 'Legacy';
+  IF v_row.score IS DISTINCT FROM 80000 OR v_row.length_meters IS NOT NULL
+     OR v_row.weight_kg IS NOT NULL OR v_row.elapsed_ms IS NOT NULL THEN
+    RAISE EXCEPTION 'A legacy ranking row must preserve its score and empty measurements: %', v_row;
+  END IF;
   IF (SELECT count(*) FROM public.ikagetto_board_page_v3('fishing', 0, 10)) <> 3 THEN
     RAISE EXCEPTION 'The fishing board must list the colossal, small and legacy scores';
   END IF;

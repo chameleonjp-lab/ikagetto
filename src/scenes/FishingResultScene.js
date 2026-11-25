@@ -186,7 +186,7 @@ export class FishingResultScene {
       // 31m-50m: colossal model standing upright at true scale.
       // Tentacle tip sits exactly on Y = 0 and the mantle tip exactly on Y = L.
       const model = new GiantSquidColossalModel(L);
-      const motion = new GiantSquidColossalMotion(model);
+      const motion = new GiantSquidColossalMotion(model, { measurementPose: true });
       motion.setState('HOVER');
       motion.ambientPulse = 0.35;
       motion.weights.cruise = 0;

@@ -519,8 +519,7 @@ export class GiantSquidColossalModel {
     return this.parts.mouthMarker.getWorldPosition(outVec);
   }
 
-  // Rest-pose extent along the body axis (local Z), in model units.
-  // Used to place the tentacle tip and the mantle tip exactly on a ruler.
+  // Measure the body vertices in model units so rotated meshes do not inflate the ruler span.
   measureBodyAxisExtent() {
     const savedMatrix = this.root.matrix.clone();
     const savedPos = this.root.position.clone();
@@ -531,12 +530,14 @@ export class GiantSquidColossalModel {
     this.root.scale.set(1, 1, 1);
     this.root.updateMatrixWorld(true);
     const box = new THREE.Box3();
-    const tmp = new THREE.Box3();
+    const vertex = new THREE.Vector3();
     this.root.traverse((obj) => {
       if (!obj.isMesh || obj.isInstancedMesh || !obj.geometry) return;
-      if (!obj.geometry.boundingBox) obj.geometry.computeBoundingBox();
-      tmp.copy(obj.geometry.boundingBox).applyMatrix4(obj.matrixWorld);
-      box.union(tmp);
+      const positions = obj.geometry.getAttribute('position');
+      for (let i = 0; i < positions.count; i++) {
+        vertex.fromBufferAttribute(positions, i).applyMatrix4(obj.matrixWorld);
+        box.expandByPoint(vertex);
+      }
     });
     this.root.position.copy(savedPos);
     this.root.quaternion.copy(savedQuat);

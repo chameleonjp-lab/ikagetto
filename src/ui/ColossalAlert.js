@@ -91,10 +91,11 @@ export class ColossalAlertOverlay {
     const st = document.createElement('style');
     st.id = 'colossal-alert-styles';
     st.textContent = `
-      #colossal-alert { position: fixed; inset: 0; z-index: 50; pointer-events: none; display: none; overflow: hidden;
+      #colossal-alert { position: fixed; inset: 0; z-index: 50; pointer-events: none; overflow: hidden;
+        opacity: 0; visibility: hidden; transition: opacity 0.2s ease-out;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }
-      #colossal-alert.show { display: block; animation: caIn 0.18s ease-out both; }
-      #colossal-alert.fade { opacity: 0; transition: opacity 0.2s ease-out; }
+      #colossal-alert.show { opacity: 1; visibility: visible; }
+      #colossal-alert.show.fade { opacity: 0; }
       #colossal-alert .ca-layer { position: absolute; inset: 0; }
       #colossal-alert .ca-center {
         position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
@@ -116,7 +117,7 @@ export class ColossalAlertOverlay {
         position: absolute; left: 50%; top: max(64px, calc(env(safe-area-inset-top) + 56px)); transform: translateX(-50%);
         max-width: 92vw; padding: 8px 16px; border-radius: 10px; font-weight: 900;
         font-size: clamp(14px, 4vw, 20px); color: #1f1300; background: #F59E0B;
-        box-shadow: 0 0 24px rgba(245, 158, 11, 0.8); text-align: center; animation: caBlink 0.5s steps(2) infinite;
+        box-shadow: 0 0 24px rgba(245, 158, 11, 0.8); text-align: center;
       }
       #colossal-alert .ca-tape {
         position: absolute; left: 0; right: 0; height: 30px; overflow: hidden; white-space: nowrap;
@@ -133,50 +134,49 @@ export class ColossalAlertOverlay {
       #colossal-alert svg.ca-sonar polyline { fill: none; stroke: #7cf3ff; stroke-width: 2.5; filter: drop-shadow(0 0 6px #22d3ee); }
 
       /* Level looks */
-      #colossal-alert.lv1 .ca-bg { box-shadow: inset 0 0 120px 30px rgba(245, 158, 11, 0.75); animation: caPulse 0.6s ease-in-out infinite alternate; }
+      #colossal-alert.lv1 .ca-bg { box-shadow: inset 0 0 120px 30px rgba(245, 158, 11, 0.75); animation: caPulse 1.1s ease-in-out 2 alternate; }
       #colossal-alert.lv2 .ca-bg {
-        background: rgba(30, 0, 0, 0.55); animation: caRedBlack 0.34s steps(2) infinite;
-        box-shadow: inset 0 0 140px 40px rgba(220, 20, 20, 0.85);
+        background: rgba(30, 0, 0, 0.38);
+        box-shadow: inset 0 0 120px 28px rgba(220, 20, 20, 0.62);
       }
       #colossal-alert.lv2 .ca-scan, #colossal-alert.lv3 .ca-scan, #colossal-alert.lv4 .ca-scan, #colossal-alert.lv5 .ca-scan {
-        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.28) 0 2px, transparent 2px 5px);
-        animation: caScan 0.9s linear infinite;
+        background: repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 5px);
+        animation: caScan 1.8s linear infinite;
       }
       #colossal-alert.lv3 .ca-bg {
-        background: rgba(153, 27, 27, 0.55); box-shadow: inset 0 0 160px 50px rgba(124, 58, 237, 0.7);
-        animation: caPurple 0.5s ease-in-out infinite alternate;
+        background: rgba(95, 27, 55, 0.38); box-shadow: inset 0 0 160px 40px rgba(124, 58, 237, 0.64);
+        animation: caPulse 1.2s ease-in-out 2 alternate;
       }
       #colossal-alert.lv4 .ca-bg {
         background:
           repeating-linear-gradient(135deg, rgba(250, 204, 21, 0.55) 0 26px, rgba(0, 0, 0, 0.55) 26px 52px) top / 100% 42px no-repeat,
           repeating-linear-gradient(135deg, rgba(250, 204, 21, 0.55) 0 26px, rgba(0, 0, 0, 0.55) 26px 52px) bottom / 100% 42px no-repeat,
-          rgba(40, 10, 0, 0.5);
-        animation: caFlash 0.42s steps(2) infinite;
+          rgba(40, 10, 0, 0.4);
       }
-      #colossal-alert.lv5 .ca-bg { animation: caLeviathan 0.3s steps(2) infinite; }
+      #colossal-alert.lv5 .ca-bg {
+        background: radial-gradient(ellipse at center, rgba(4, 12, 31, 0.40) 28%, rgba(53, 8, 31, 0.74) 100%);
+        box-shadow: inset 0 0 75px 12px rgba(255, 45, 96, 0.67), inset 0 0 22px 2px rgba(125, 211, 252, 0.7);
+        animation: caLeviathan 1.4s ease-in-out 2 alternate;
+      }
       #colossal-alert.lv5 .ca-headline { text-shadow: 0 0 18px #7dd3fc, 0 0 6px #ff2a55, 0 2px 4px #000; }
 
       @keyframes caIn { from { opacity: 0; } to { opacity: 1; } }
-      @keyframes caBlink { 0% { opacity: 1; } 100% { opacity: 0.55; } }
-      @keyframes caPulse { from { opacity: 0.55; } to { opacity: 1; } }
-      @keyframes caRedBlack { 0% { background: rgba(170, 0, 0, 0.5); } 100% { background: rgba(0, 0, 0, 0.55); } }
-      @keyframes caPurple { from { box-shadow: inset 0 0 120px 30px rgba(124, 58, 237, 0.45); } to { box-shadow: inset 0 0 180px 60px rgba(168, 85, 247, 0.85); } }
-      @keyframes caFlash { 0% { filter: brightness(1); } 100% { filter: brightness(1.7); } }
+      @keyframes caPulse { from { opacity: 1; } to { opacity: 0.86; } }
       @keyframes caLeviathan {
-        0% { background: rgba(220, 20, 50, 0.55); box-shadow: inset 0 0 180px 60px rgba(255, 30, 60, 0.9); }
-        100% { background: rgba(186, 230, 253, 0.42); box-shadow: inset 0 0 180px 60px rgba(125, 211, 252, 0.9); }
+        from { box-shadow: inset 0 0 75px 12px rgba(255, 45, 96, 0.67), inset 0 0 22px 2px rgba(125, 211, 252, 0.7); }
+        to { box-shadow: inset 0 0 115px 17px rgba(255, 45, 96, 0.75), inset 0 0 32px 2px rgba(125, 211, 252, 0.8); }
       }
-      @keyframes caScan { from { background-position: 0 0; } to { background-position: 0 30px; } }
+      @keyframes caScan { from { background-position: 0 0; } to { background-position: 0 10px; } }
       @keyframes caTape { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-      .colossal-shake-weak { animation: caShakeW 0.12s linear infinite; }
-      .colossal-shake-mid { animation: caShakeM 0.1s linear infinite; }
-      .colossal-shake-strong { animation: caShakeS 0.08s linear infinite; }
+      .colossal-shake-weak { animation: caShakeW 0.32s ease-in-out 1; }
+      .colossal-shake-mid { animation: caShakeM 0.32s ease-in-out 2; }
+      .colossal-shake-strong { animation: caShakeS 0.38s ease-in-out 2; }
       @keyframes caShakeW { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-2px,1px); } 75% { transform: translate(2px,-1px); } }
       @keyframes caShakeM { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-5px,3px); } 75% { transform: translate(5px,-3px); } }
-      @keyframes caShakeS { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-9px,5px) rotate(-0.3deg); } 75% { transform: translate(9px,-5px) rotate(0.3deg); } }
+      @keyframes caShakeS { 0%,100% { transform: translate(0,0); } 25% { transform: translate(-6px,3px) rotate(-0.2deg); } 75% { transform: translate(6px,-3px) rotate(0.2deg); } }
 
-      .colossal-depth-glitch { animation: caGlitch 0.16s steps(2) infinite; color: #ff4d6d !important; }
+      .colossal-depth-glitch { animation: caGlitch 0.3s steps(2) 2; color: #ff4d6d !important; }
       @keyframes caGlitch {
         0% { transform: translate(0,0) skewX(0deg); text-shadow: 2px 0 #22d3ee, -2px 0 #ff2a55; }
         100% { transform: translate(1px,-1px) skewX(-8deg); text-shadow: -3px 0 #22d3ee, 3px 0 #ff2a55; }
@@ -201,7 +201,7 @@ export class ColossalAlertOverlay {
       #colossal-veil.on { opacity: 1; }
 
       @media (prefers-reduced-motion: reduce) {
-        #colossal-alert .ca-bg, #colossal-alert .ca-banner, #colossal-alert .ca-scan, #colossal-alert .ca-tape span { animation: none !important; }
+        #colossal-alert .ca-bg, #colossal-alert .ca-scan, #colossal-alert .ca-tape span { animation: none !important; }
         .colossal-shake-weak, .colossal-shake-mid, .colossal-shake-strong, .colossal-depth-glitch { animation: none !important; }
       }
     `;
@@ -261,7 +261,7 @@ export class ColossalAlertOverlay {
     this.el.className = `show ${cfg.cls}`;
 
     // Re-draw the jittering sonar line a few times per second.
-    if (cfg.sonar) {
+    if (cfg.sonar && !globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       const line = this.el.querySelector('svg.ca-sonar polyline');
       let seed = 1;
       this.sonarTimer = setInterval(() => { seed += 0.9; line?.setAttribute('points', this._sonarPoints(seed)); }, 90);
