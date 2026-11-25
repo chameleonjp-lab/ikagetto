@@ -2,21 +2,25 @@ import { t } from '../i18n/runtime.js';
 import * as THREE from 'three';
 import { FishermanModel } from '../models/FishermanModel.js';
 import { createTieredGiantSquid } from '../models/GiantSquidTiers.js';
+import { GiantSquidColossalModel } from '../models/GiantSquidColossalModel.js';
+import { GiantSquidColossalMotion } from '../models/GiantSquidColossalMotion.js';
 
-// Explicit 30-step (1m..30m) scale & framing presets so the 170cm fisherman head
+// Explicit 50-step (1m..50m) scale & framing presets so the 170cm fisherman head
 // aligns cleanly with the 1.7m dashed ruler line and NEVER overlaps the top-left score card!
-function buildScalePreset30(lengthMeters) {
-  const L = Math.max(1, Math.min(30, Math.round(lengthMeters)));
+// 1-30m keep the original presets; 31-40m use 5m ticks, 41-50m use 10m ticks.
+function buildScalePreset50(lengthMeters) {
+  const L = Math.max(1, Math.min(50, Math.round(lengthMeters)));
   let step = 1;
   if (L <= 4) step = 0.5;
   else if (L <= 10) step = 1;
   else if (L <= 20) step = 2;
-  else step = 5;
+  else if (L <= 40) step = 5;
+  else step = 10;
 
   const maxScaleMeters = Math.max(2.5, Math.ceil((Math.max(L, 2.0) * 1.18) / step) * step);
   // Fisherman is ALWAYS exact 1.70 world units tall (170cm), while horizontal spacing & camera
-  // framing are tuned across all 30 sizes so both Fisherman and Giant Squid fit the central safe zone!
-  const spreadX = L <= 3 ? 0.65 : L <= 8 ? 1.15 : L <= 15 ? 2.1 : L <= 22 ? 3.2 : 4.4;
+  // framing are tuned across all 50 sizes so both Fisherman and Giant Squid fit the central safe zone!
+  const spreadX = L <= 3 ? 0.65 : L <= 8 ? 1.15 : L <= 15 ? 2.1 : L <= 22 ? 3.2 : L <= 30 ? 4.4 : L <= 40 ? 5.4 : 6.8;
   return {
     lengthMeters: L,
     step,
@@ -32,7 +36,8 @@ export class FishingResultScene {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x061324);
 
-    this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 240);
+    // far = 420 so a 50m squid and its 60m ruler always stay inside the view.
+    this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 420);
     this.time = 0;
 
     this.scene.add(new THREE.HemisphereLight(0xb2dcff, 0x0b1c30, 1.2));
@@ -57,7 +62,10 @@ export class FishingResultScene {
     this.labelSprites = new THREE.Group();
     this.scene.add(this.labelSprites);
     this.squid = null;
-    this.preset = buildScalePreset30(8);
+    this.colossal = null; // { model, motion } for 31m-50m
+    this.preset = buildScalePreset50(8);
+    this.safeTopPx = 0;
+    this.safeCheckTimer = 0;
   }
 
   _makeCrispBadgeSprite(text, fgColor = '#a8dcff', borderColor = 'rgba(92,225,255,0.45)', bgColor = 'rgba(6,18,34,0.82)', worldHeight = 0.24) {
@@ -166,18 +174,41 @@ export class FishingResultScene {
 
   configure(specimen) {
     if (this.squid) this.scene.remove(this.squid.getObject3D());
-    this.preset = buildScalePreset30(specimen.lengthMeters);
-    this.squid = createTieredGiantSquid(specimen);
-
-    const sqObj = this.squid.getObject3D();
-    this.scene.add(sqObj);
-
+    this.squid = null;
+    if (this.colossal) {
+      this.colossal.model.dispose();
+      this.colossal = null;
+    }
+    this.preset = buildScalePreset50(specimen.lengthMeters);
     const L = this.preset.lengthMeters;
-    // Normalize exact vertical span (base squid is ~9.93 units from z=+2.85 to z=-7.08)
-    const exactScale = L / 9.93;
-    sqObj.scale.set(exactScale, exactScale, exactScale);
-    sqObj.rotation.set(-Math.PI * 0.5, 0, 0);
-    sqObj.position.set(this.preset.squidX, L * (7.08 / 9.93), 0);
+
+    if (L >= 31) {
+      // 31m-50m: colossal model standing upright at true scale.
+      // Tentacle tip sits exactly on Y = 0 and the mantle tip exactly on Y = L.
+      const model = new GiantSquidColossalModel(L);
+      const motion = new GiantSquidColossalMotion(model);
+      motion.setState('HOVER');
+      motion.ambientPulse = 0.35;
+      motion.weights.cruise = 0;
+      motion.weights.hover = 1;
+      const extent = model.measureBodyAxisExtent();
+      const exactScale = L / extent.length;
+      const obj = model.getObject3D();
+      obj.scale.setScalar(exactScale);
+      obj.rotation.set(-Math.PI * 0.5, 0, 0); // local +Z (mantle) -> world +Y
+      obj.position.set(this.preset.squidX, -extent.minZ * exactScale, 0);
+      this.scene.add(obj);
+      this.colossal = { model, motion };
+    } else {
+      this.squid = createTieredGiantSquid(specimen);
+      const sqObj = this.squid.getObject3D();
+      this.scene.add(sqObj);
+      // Normalize exact vertical span (base squid is ~9.93 units from z=+2.85 to z=-7.08)
+      const exactScale = L / 9.93;
+      sqObj.scale.set(exactScale, exactScale, exactScale);
+      sqObj.rotation.set(-Math.PI * 0.5, 0, 0);
+      sqObj.position.set(this.preset.squidX, L * (7.08 / 9.93), 0);
+    }
 
     // 170cm Fisherman standing cleanly at Y = 0 on the left
     const fObj = this.fisherman.getObject3D();
@@ -194,6 +225,9 @@ export class FishingResultScene {
       this.squid.setHooked(false);
       this.squid.update(dt, { cameraPos: this.camera.position, lightIntensity: 0.4 });
     }
+    if (this.colossal) {
+      this.colossal.motion.update(Math.min(0.05, dt), { angularVelocity: 0, cameraPos: this.camera.position });
+    }
 
     const aspect = width / Math.max(1, height);
     this.camera.aspect = aspect;
@@ -208,6 +242,21 @@ export class FishingResultScene {
 
     // Shift lookAt slightly upward so the 0m..maxM stage sits nicely below the top-left score card
     const centerY = totalH * 0.56;
+
+    // Safety margin from the real score-card size: keep the squid's top (Y = L, plus a
+    // small gap) below the card, and the floor (Y = 0) above the footer buttons.
+    this.safeCheckTimer -= dt;
+    if (this.safeCheckTimer <= 0) {
+      this.safeCheckTimer = 0.5;
+      const card = document.getElementById('fr-card');
+      const rect = card && card.offsetParent !== null ? card.getBoundingClientRect() : null;
+      this.safeTopPx = rect ? rect.bottom + 10 : 0;
+    }
+    const tanHalf = Math.tan(fovRad * 0.5);
+    const topFrac = Math.min(0.42, Math.max(0.22, this.safeTopPx / Math.max(1, height)));
+    const squidTop = this.preset.lengthMeters * 1.04;
+    if (squidTop > centerY) camDist = Math.max(camDist, (squidTop - centerY) / ((0.5 - topFrac) * 2 * tanHalf));
+    camDist = Math.max(camDist, centerY / (0.36 * 2 * tanHalf));
     this.camera.position.set(0, centerY, camDist);
     this.camera.lookAt(0, centerY, 0);
 

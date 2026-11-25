@@ -4,6 +4,7 @@ import { getLanguage, localizeHtml, setLanguage, t } from '../i18n/runtime.js';
 import { getPlayerName, setPlayerName } from '../ranking/client.js';
 import { rankText } from '../ranking/messages.js';
 import { getRankingHref, shareOnX } from '../ranking/share.js';
+import { ColossalAlertOverlay } from './ColossalAlert.js';
 
 export class HUDManager {
   constructor(rootContainer, callbacks = {}) {
@@ -48,6 +49,17 @@ export class HUDManager {
     this._buildDOM();
     this._bindEvents();
     this._applyPanelVisibility();
+    // 31m-50m discovery warning + boss-action banners (non-blocking overlay).
+    this.colossalAlert = new ColossalAlertOverlay(rootContainer);
+  }
+
+  // Called when the rig reaches 600m with a 31m-50m squid on the line.
+  showColossalAlert(lengthMeters, level) {
+    this.colossalAlert.show(lengthMeters, level);
+  }
+
+  showColossalAction(actionName) {
+    this.colossalAlert.showAction(actionName);
   }
 
   isPiPVisible() {
@@ -66,6 +78,7 @@ export class HUDManager {
     this.elPipLabel.classList.add('hidden');
     this.elBigCallout.classList.remove('show');
     this.elResultModal.classList.add('hidden');
+    this.colossalAlert?.clearAll();
   }
 
   _injectStyles() {

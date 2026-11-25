@@ -1,4 +1,4 @@
-import { translateComment } from '../i18n/runtime.js';
+import { translateColossalComment, translateComment } from '../i18n/runtime.js';
 
 // =============================================================================
 // 6-Tier Giant Squid Specimen Generator, Score Formula & 300 Comments (100 x 3)
@@ -103,45 +103,240 @@ export const SQUID_TIERS = {
   }
 };
 
+// 31m-50m colossal classes. They reuse the same fields as Tier 1-6 so the engine
+// can read tensionMult / staminaMax the same way. `colossal: true` marks them.
+export const COLOSSAL_TIERS = {
+  7: {
+    tier: 7,
+    key: 'TIER7',
+    name: 'ヌシ級・序盤',
+    minLen: 31,
+    maxLen: 34,
+    scale: 2.30,
+    tensionMult: 2.60,
+    staminaMax: 290,
+    tearMult: 1.30,
+    jetFreqMult: 0.56,
+    escapeBurstCount: 3,
+    jetPeriodRange: [7.6, 8.5],
+    alertLevel: 1,
+    reelSpeedMult: 0.78,
+    colossal: true
+  },
+  8: {
+    tier: 8,
+    key: 'TIER8',
+    name: 'ヌシ級',
+    minLen: 35,
+    maxLen: 39,
+    scale: 2.42,
+    tensionMult: 2.75,
+    staminaMax: 320,
+    tearMult: 1.32,
+    jetFreqMult: 0.52,
+    escapeBurstCount: 3,
+    jetPeriodRange: [8.7, 9.8],
+    alertLevel: 2,
+    reelSpeedMult: 0.70,
+    colossal: true
+  },
+  9: {
+    tier: 9,
+    key: 'TIER9',
+    name: '超巨大級',
+    minLen: 40,
+    maxLen: 44,
+    scale: 2.56,
+    tensionMult: 2.90,
+    staminaMax: 355,
+    tearMult: 1.34,
+    jetFreqMult: 0.48,
+    escapeBurstCount: 4,
+    jetPeriodRange: [10.0, 11.0],
+    alertLevel: 3,
+    reelSpeedMult: 0.64,
+    colossal: true
+  },
+  10: {
+    tier: 10,
+    key: 'TIER10',
+    name: '超巨大級・極大',
+    minLen: 45,
+    maxLen: 49,
+    scale: 2.70,
+    tensionMult: 3.05,
+    staminaMax: 390,
+    tearMult: 1.36,
+    jetFreqMult: 0.44,
+    escapeBurstCount: 4,
+    jetPeriodRange: [11.2, 12.1],
+    alertLevel: 4,
+    reelSpeedMult: 0.63,
+    colossal: true
+  },
+  11: {
+    tier: 11,
+    key: 'TIER10_MAX',
+    name: '伝説の深海神',
+    minLen: 50,
+    maxLen: 50,
+    scale: 2.80,
+    tensionMult: 3.18,
+    staminaMax: 420,
+    tearMult: 1.38,
+    jetFreqMult: 0.42,
+    escapeBurstCount: 4,
+    jetPeriodRange: [12.2, 12.5],
+    alertLevel: 5,
+    reelSpeedMult: 0.60,
+    colossal: true
+  }
+};
+
+export const COLOSSAL_MIN_LENGTH = 31;
+export const MAX_LENGTH_METERS = 50;
+
+export function isColossalLength(lengthMeters) {
+  return Number(lengthMeters) >= COLOSSAL_MIN_LENGTH;
+}
+
 export function getTierForLength(lengthMeters) {
   if (lengthMeters <= 4) return SQUID_TIERS[1];
   if (lengthMeters <= 10) return SQUID_TIERS[2];
   if (lengthMeters <= 15) return SQUID_TIERS[3];
   if (lengthMeters <= 20) return SQUID_TIERS[4];
   if (lengthMeters <= 25) return SQUID_TIERS[5];
-  return SQUID_TIERS[6];
+  if (lengthMeters <= 30) return SQUID_TIERS[6];
+  if (lengthMeters <= 34) return COLOSSAL_TIERS[7];
+  if (lengthMeters <= 39) return COLOSSAL_TIERS[8];
+  if (lengthMeters <= 44) return COLOSSAL_TIERS[9];
+  if (lengthMeters <= 49) return COLOSSAL_TIERS[10];
+  return COLOSSAL_TIERS[11];
 }
 
-// Generates a 1m–30m (integer 1m step, 30 patterns) specimen with rich multi-pattern weight variation
-export function generateSquidSpecimen() {
-  const lengthMeters = 1 + Math.floor(Math.random() * 30); // 1..30m
-  const tierDef = getTierForLength(lengthMeters);
+// =============================================================================
+// 31m-50m encounter chance with a pity counter (saved in localStorage)
+// =============================================================================
+export const COLOSSAL_PITY_KEY = 'ikagetto_colossal_pity_v1';
+let pityMemory = { attemptCount: 1 };
 
-  // Continuous body-build factor (0.72 slim .. 1.38 massive/heavy) -> hundreds of weight outcomes
-  const buildFactor = 0.72 + Math.random() * 0.66;
-  const baseKg = Math.pow(lengthMeters, 2.55) * 0.92;
-  const weightKg = Math.max(2, Math.round(baseKg * buildFactor));
+function sanitizeAttemptCount(value) {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) ? Math.min(9, Math.max(1, n)) : 1;
+}
 
-  const buildLabel = buildFactor < 0.88
+export function readColossalPity() {
+  try {
+    const raw = globalThis.localStorage?.getItem(COLOSSAL_PITY_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      pityMemory = { attemptCount: sanitizeAttemptCount(parsed?.attemptCount) };
+    }
+  } catch { /* Private mode etc.: keep the in-memory value. */ }
+  return { ...pityMemory };
+}
+
+export function writeColossalPity(attemptCount) {
+  pityMemory = { attemptCount: sanitizeAttemptCount(attemptCount) };
+  try {
+    globalThis.localStorage?.setItem(COLOSSAL_PITY_KEY, JSON.stringify(pityMemory));
+  } catch { /* Private mode etc.: keep the in-memory value. */ }
+  return { ...pityMemory };
+}
+
+// 1st try 0%, then +5% per try, capped at 40% from the 9th try.
+export function calculateColossalProbability(attemptCount) {
+  if (attemptCount <= 1) return 0.0;
+  return Math.min(0.40, Math.max(0.0, (attemptCount - 1) * 0.05));
+}
+
+// Decide the encounter at departure and save the next count right away, so a
+// reload cannot be used to re-roll the same try.
+export function rollColossalEncounter(random = Math.random) {
+  const { attemptCount } = readColossalPity();
+  const probability = calculateColossalProbability(attemptCount);
+  const hit = random() < probability;
+  writeColossalPity(hit ? 2 : Math.min(9, attemptCount + 1));
+  return { hit, attemptCount, probability };
+}
+
+const COLOSSAL_LENGTH_BANDS = [
+  { min: 31, max: 34, weight: 0.32 },
+  { min: 35, max: 39, weight: 0.28 },
+  { min: 40, max: 44, weight: 0.20 },
+  { min: 45, max: 49, weight: 0.14 },
+  { min: 50, max: 50, weight: 0.06 }
+];
+
+export function pickColossalLength(random = Math.random) {
+  let r = random();
+  for (const band of COLOSSAL_LENGTH_BANDS) {
+    if (r < band.weight) {
+      const span = band.max - band.min + 1;
+      return band.min + Math.min(span - 1, Math.floor((r / band.weight) * span));
+    }
+    r -= band.weight;
+  }
+  return 50;
+}
+
+// Smoothly blends the 1-30m curve into a cubic curve so 30m -> 31m stays continuous.
+export function colossalStandardWeight(lengthMeters) {
+  const L = Math.min(50, Math.max(30, lengthMeters));
+  const base30 = Math.pow(30, 2.55) * 0.92;
+  const cubic = 250 * Math.pow(L / 10, 3);
+  const t = (L - 30) / 20;
+  return (1 - t) * base30 * Math.pow(L / 30, 2.55) + t * cubic;
+}
+
+function buildLabelFor(buildFactor) {
+  return buildFactor < 0.88
     ? 'スリム型'
     : buildFactor < 1.08
       ? '標準体型'
       : buildFactor < 1.24
         ? '肉厚ヘビー級'
         : '極太モンスター級';
+}
 
+export function createSquidSpecimen(lengthMeters, buildFactor = 0.72 + Math.random() * 0.66) {
+  const L = Math.max(1, Math.min(MAX_LENGTH_METERS, Math.round(lengthMeters)));
+  const tierDef = getTierForLength(L);
+  let weightKg;
+  let effectiveBuild = buildFactor;
+  if (L >= COLOSSAL_MIN_LENGTH) {
+    effectiveBuild = Math.min(1.25, Math.max(0.82, buildFactor));
+    weightKg = Math.round(Math.min(42000, Math.max(100, colossalStandardWeight(L) * effectiveBuild)));
+  } else {
+    const baseKg = Math.pow(L, 2.55) * 0.92;
+    weightKg = Math.max(2, Math.round(baseKg * buildFactor));
+  }
   return {
-    lengthMeters,
+    lengthMeters: L,
     weightKg,
-    buildFactor,
-    buildLabel,
+    buildFactor: effectiveBuild,
+    buildLabel: buildLabelFor(effectiveBuild),
     tier: tierDef.tier,
-    tierDef
+    tierDef,
+    colossal: Boolean(tierDef.colossal)
   };
 }
 
-// Fishing score (0..50,000) rewarding Length + Weight + Speed
+// Generates a 1m–30m (integer 1m step) specimen, or a 31m–50m colossal one when
+// `rollColossal` is set (only at departure, never for the home-screen preview).
+export function generateSquidSpecimen({ rollColossal = false, forceLength = null, random = Math.random } = {}) {
+  if (Number.isFinite(forceLength)) return createSquidSpecimen(forceLength);
+  if (rollColossal && rollColossalEncounter(random).hit) {
+    return createSquidSpecimen(pickColossalLength(random));
+  }
+  return createSquidSpecimen(1 + Math.floor(random() * 30)); // 1..30m
+}
+
+// Fishing score: 0..50,000 for 1-30m (unchanged), 50,000..80,000 for 31-50m.
 export function calculateFishingScore({ lengthMeters, weightKg, elapsedTime, tear = 0, maxWinchTemp = 50 }) {
+  if (lengthMeters >= COLOSSAL_MIN_LENGTH) {
+    return calculateColossalScore({ lengthMeters, weightKg, elapsedTime, tear, maxWinchTemp });
+  }
   const lenScore = Math.pow(lengthMeters / 30, 1.12) * 24000;
   const refWeight = Math.pow(lengthMeters, 2.55) * 0.92;
   const relWeightRatio = Math.min(1.4, Math.max(0.65, weightKg / Math.max(1, refWeight)));
@@ -154,8 +349,33 @@ export function calculateFishingScore({ lengthMeters, weightKg, elapsedTime, tea
 
   const penalty = Math.min(2800, tear * 18 + Math.max(0, maxWinchTemp - 92) * 35);
   const score = Math.round(Math.max(0, Math.min(50000, lenScore + weightScore + speedScore - penalty)));
-  const rank = score >= 45000 ? 'S+' : score >= 37500 ? 'S' : score >= 27500 ? 'A' : score >= 17500 ? 'B' : 'C';
-  return { score, rank };
+  return { score, rank: rankForScore(score) };
+}
+
+export function rankForScore(score) {
+  if (score >= 74000) return 'EX';
+  if (score >= 65000) return 'SSS';
+  if (score >= 55000) return 'SS';
+  return score >= 45000 ? 'S+' : score >= 37500 ? 'S' : score >= 27500 ? 'A' : score >= 17500 ? 'B' : 'C';
+}
+
+// Score = 50000 + (L - 30) * 1200 + floor(weight / 150) + FightTimeBonus, capped at 80,000.
+// Whole voyage time (search + descent ~35s + fight) is compared with a size-based target:
+// a well-played fight takes about 80s at 31m up to about 130s at 50m.
+export function calculateColossalScore({ lengthMeters, weightKg, elapsedTime, tear = 0, maxWinchTemp = 50 }) {
+  const L = Math.min(50, Math.max(31, lengthMeters));
+  const targetSec = 115 + (L - 31) * 2.75;
+  const speedRatio = Math.max(0.1, Math.min(1.35, targetSec / Math.max(30, elapsedTime)));
+  const penalty = Math.min(2800, tear * 18 + Math.max(0, maxWinchTemp - 92) * 35);
+  const fightTimeBonus = Math.max(0, Math.min(5740, speedRatio * 4250) - penalty);
+  const raw = 50000 + (L - 30) * 1200 + Math.floor(weightKg / 150) + fightTimeBonus;
+  const score = Math.round(Math.max(0, Math.min(80000, raw)));
+
+  let evaluation = speedRatio >= 1.15 ? 'EXCELLENT' : speedRatio >= 0.9 ? 'GOOD' : speedRatio >= 0.6 ? 'AVERAGE' : 'POOR';
+  if (maxWinchTemp > 100 && evaluation !== 'POOR') {
+    evaluation = evaluation === 'EXCELLENT' ? 'GOOD' : evaluation === 'GOOD' ? 'AVERAGE' : 'POOR';
+  }
+  return { score, rank: rankForScore(score), evaluation, speedRatio, fightTimeBonus };
 }
 
 // =============================================================================
@@ -469,6 +689,56 @@ export const COOKING_COMMENTS_100 = [
   '満点まであと一歩！料理神の領域に到達した伝説のシェフ！',
   '【完全美食・料理神降臨】全工程パーフェクト！歴史に永遠に語り継がれる究極のダイオウイカ・アヒージョ！'
 ];
+
+// =============================================================================
+// 31m-50m colossal comments (5 size classes x 4 evaluations = 20)
+// =============================================================================
+export const COLOSSAL_FISHING_COMMENTS = {
+  // Tier 7: 31m〜34m (ヌシ級・序盤)
+  TIER7: {
+    POOR: '30mオーバーの巨体！だが暴れに対処しきれず、ラインはズタズタだ…',
+    AVERAGE: '30m超えのヌシ級を制覇！船体に響く怪力が凄まじい。',
+    GOOD: '見事な手さばき！30m超の巨イカを完璧な張力コントロールで揚収！',
+    EXCELLENT: '伝説の始まりだ！30m級の巨体を一切の無駄なく仕留めた完全勝利！'
+  },
+  // Tier 8: 35m〜39m (ヌシ級 Abyssal)
+  TIER8: {
+    POOR: '35m超の怪物！船体が引きずり込まれかけるギリギリの死闘だった…',
+    AVERAGE: '深海の主を捕獲！35mオーバーの圧倒的な重量感が腕に残る。',
+    GOOD: '素晴らしい操舵技術！35m超の猛烈なジェット噴射を完封して捕獲！',
+    EXCELLENT: '神業的なリール捌き！35mオーバーの超巨大個体を完璧に制圧！'
+  },
+  // Tier 9: 40m〜44m (超巨大級 Colossal)
+  TIER9: {
+    POOR: '40m級の超巨体コロッサル！糸切れ寸前の大混乱の末、なんとか揚収…',
+    AVERAGE: '40m超えの超巨大イカ降臨！怪物の巨体が甲板を覆い尽くす！',
+    GOOD: '見事なテクニック！40m級の強烈な高圧墨と暴れを冷静に捌き切った！',
+    EXCELLENT: '深海歴史に刻まれる快挙！40m超の超巨大級をノーミスで完璧捕獲！'
+  },
+  // Tier 10: 45m〜49m (超巨大級・極大)
+  TIER10: {
+    POOR: '45m超のタイタン級！船体の限界を超えた絶望的な死闘を生き延びた…',
+    AVERAGE: '45mオーバーの極大個体を水揚げ！海面が泡立つほどの圧倒的存在感！',
+    GOOD: '極限状態での見事な勝利！45m級の絶望的な引張力を完全に制御した！',
+    EXCELLENT: '圧倒的プロフェッショナル！45m超の深海タイタンを完璧に攻略！'
+  },
+  // Tier 10+ MAX: 50m (伝説の深海神 Leviathan)
+  TIER10_MAX: {
+    POOR: '50m神話級リヴァイアサン！九死に一生を得て奇跡的に水揚げ成功…！',
+    AVERAGE: '50m MAX到達！！深海の頂点に君臨する伝説の神をついに捕獲！！',
+    GOOD: '完璧なる深海制覇！50mの神級個体を完璧な操船とリールワークで完封！',
+    EXCELLENT: '全人類初の偉業！50m深海神リヴァイアサンを完全無欠のパーフェクト捕獲！！'
+  }
+};
+
+export const COLOSSAL_EVALUATIONS = ['POOR', 'AVERAGE', 'GOOD', 'EXCELLENT'];
+
+export function getColossalComment(lengthMeters, evaluation = 'AVERAGE') {
+  const tierDef = getTierForLength(lengthMeters);
+  const key = tierDef.key || 'TIER7';
+  const evalKey = COLOSSAL_EVALUATIONS.includes(evaluation) ? evaluation : 'AVERAGE';
+  return translateColossalComment(key, COLOSSAL_EVALUATIONS.indexOf(evalKey), COLOSSAL_FISHING_COMMENTS[key][evalKey]);
+}
 
 export function getCommentForScore(score, type = 'fishing') {
   const idx = Math.max(0, Math.min(99, Math.floor(score / 500)));

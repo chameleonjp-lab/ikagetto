@@ -18,6 +18,9 @@ export class ResultFXManager {
     this.canvas.className = 'hidden';
     this.root.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d');
+    this.frame = document.createElement('div');
+    this.frame.id = 'result-fx-frame';
+    this.root.appendChild(this.frame);
   }
 
   _injectStyles() {
@@ -58,6 +61,47 @@ export class ResultFXManager {
         animation: resFailShake 0.55s ease-in-out both;
       }
 
+      /* 31m-50m ranks */
+      .res-tier-ss {
+        border: 2px solid #ffd36b !important;
+        box-shadow: 0 0 34px rgba(255, 200, 80, 0.7), inset 0 0 20px rgba(125, 211, 252, 0.25) !important;
+        background: linear-gradient(155deg, rgba(40, 26, 6, 0.95), rgba(8, 22, 40, 0.95)) !important;
+        animation: resSlamGold 0.6s cubic-bezier(0.2, 1.35, 0.4, 1) both;
+      }
+      .res-tier-sss {
+        border: 2px solid #c4b5fd !important;
+        box-shadow: 0 0 38px rgba(196, 181, 253, 0.75), 0 0 18px rgba(255, 212, 68, 0.6) !important;
+        background: linear-gradient(155deg, rgba(30, 12, 48, 0.95), rgba(8, 22, 40, 0.95)) !important;
+        animation: resSlamGold 0.65s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+      }
+      .res-tier-ex {
+        border: 2px solid #fff3b0 !important;
+        box-shadow: 0 0 44px rgba(255, 228, 107, 0.9), 0 0 22px rgba(125, 211, 252, 0.8) !important;
+        background: linear-gradient(155deg, rgba(48, 30, 4, 0.96), rgba(6, 26, 48, 0.96)) !important;
+        animation: resSlamGold 0.7s cubic-bezier(0.2, 1.45, 0.4, 1) both, resExGlow 1.6s ease-in-out 0.7s infinite alternate;
+      }
+      .res-rank-ss  { color: #ffe08a !important; text-shadow: 0 0 18px #ffb700, 0 0 8px #7dd3fc, 0 2px 6px rgba(0,0,0,0.9); }
+      .res-rank-sss { color: #e9d5ff !important; text-shadow: 0 0 18px #a855f7, 0 0 10px #ffd454, 0 2px 6px rgba(0,0,0,0.9); }
+      .res-rank-ex  { color: #fffbe0 !important; text-shadow: 0 0 22px #ffd454, 0 0 12px #7dd3fc, 0 2px 6px rgba(0,0,0,0.9); }
+      .res-ribbon-ss  { background: linear-gradient(90deg, #ffb700, #fff08a, #7dd3fc); color: #1d1200; }
+      .res-ribbon-sss { background: linear-gradient(90deg, #a855f7, #ffd454, #a855f7); color: #160626; }
+      .res-ribbon-ex  { background: linear-gradient(90deg, #ffd454, #ffffff, #7dd3fc, #ffd454); color: #1a1000; }
+      @keyframes resExGlow {
+        from { box-shadow: 0 0 30px rgba(255, 228, 107, 0.7), 0 0 14px rgba(125, 211, 252, 0.6); }
+        to { box-shadow: 0 0 56px rgba(255, 228, 107, 1), 0 0 28px rgba(125, 211, 252, 0.95); }
+      }
+
+      /* 50m MAX: gold frame glow around the whole screen */
+      #result-fx-frame {
+        position: fixed; inset: 0; z-index: 44; pointer-events: none; display: none;
+        border: 3px solid rgba(255, 220, 110, 0.9); border-radius: 6px;
+        box-shadow: inset 0 0 42px 10px rgba(255, 205, 70, 0.55), inset 0 0 120px 30px rgba(125, 211, 252, 0.18);
+        animation: resFrame 1.4s ease-in-out infinite alternate;
+      }
+      #result-fx-frame.show { display: block; }
+      @keyframes resFrame { from { opacity: 0.65; } to { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) { #result-fx-frame, .res-tier-ex { animation: none !important; } }
+
       .res-rank-splus { color: #fff27a !important; text-shadow: 0 0 16px #ffb700, 0 2px 6px rgba(0,0,0,0.9); }
       .res-rank-s     { color: #ffd454 !important; text-shadow: 0 0 12px rgba(255,190,40,0.8); }
       .res-rank-a     { color: #4ef2a1 !important; text-shadow: 0 0 10px rgba(60,224,138,0.65); }
@@ -95,6 +139,9 @@ export class ResultFXManager {
   }
 
   static getTierInfo(rank) {
+    if (rank === 'EX')  return { key: 'ex',  label: '✦ LEVIATHAN EX ✦' };
+    if (rank === 'SSS') return { key: 'sss', label: '★★★ ABYSSAL TITAN ★★★' };
+    if (rank === 'SS')  return { key: 'ss',  label: '★★ COLOSSAL RECORD ★★' };
     if (rank === 'S+') return { key: 'splus', label: '★ LEGENDARY RECORD ★' };
     if (rank === 'S')  return { key: 's',     label: '★ EXCELLENT! ★' };
     if (rank === 'A')  return { key: 'a',     label: 'GREAT RESULT!' };
@@ -104,9 +151,10 @@ export class ResultFXManager {
 
   static applyCardStyle(cardEl, rankEl, ribbonEl, rank) {
     const info = ResultFXManager.getTierInfo(rank);
-    const allCard = ['res-tier-splus', 'res-tier-s', 'res-tier-a', 'res-tier-b', 'res-tier-c'];
-    const allRank = ['res-rank-splus', 'res-rank-s', 'res-rank-a', 'res-rank-b', 'res-rank-c'];
-    const allRib  = ['res-ribbon-splus', 'res-ribbon-s', 'res-ribbon-a', 'res-ribbon-b', 'res-ribbon-c'];
+    const keys = ['ex', 'sss', 'ss', 'splus', 's', 'a', 'b', 'c'];
+    const allCard = keys.map((k) => `res-tier-${k}`);
+    const allRank = keys.map((k) => `res-rank-${k}`);
+    const allRib  = keys.map((k) => `res-ribbon-${k}`);
 
     if (cardEl) {
       cardEl.classList.remove(...allCard);
@@ -137,8 +185,14 @@ export class ResultFXManager {
     requestAnimationFrame(tick);
   }
 
-  start(rank) {
+  // options.lengthMeters: 35m+ adds 2.5x gold & pale-blue deep-sea light particles,
+  // 50m adds the gold screen frame and continuous fireworks.
+  start(rank, options = {}) {
     this.stop();
+    const lengthMeters = Number(options.lengthMeters) || 0;
+    this.fireworks = lengthMeters >= 50;
+    this.fireworkTimer = 0.2;
+    if (rank === 'SS' || rank === 'SSS' || rank === 'EX') rank = 'S+';
     this.rank = rank;
     this.active = true;
     this.canvas.classList.remove('hidden');
@@ -148,6 +202,24 @@ export class ResultFXManager {
 
     const w = this.canvas.width, h = this.canvas.height;
     const count = rank === 'S+' ? 110 : rank === 'S' ? 75 : rank === 'A' ? 42 : rank === 'B' ? 24 : 55;
+    if (lengthMeters >= 35) {
+      // Deep-sea light motes: base amount x 2.5, gold and pale blue.
+      const deepPal = ['#ffd454', '#fff2b3', '#bfeaff', '#7dd3fc', '#e0f7ff'];
+      const extra = Math.round(count * 2.5);
+      for (let i = 0; i < extra; i++) {
+        this.particles.push({
+          kind: 'sparkle',
+          x: Math.random() * w,
+          y: h * (0.1 + Math.random() * 0.9),
+          vx: (Math.random() - 0.5) * 26,
+          vy: -(30 + Math.random() * 70),
+          size: 1.5 + Math.random() * 3.5,
+          color: deepPal[i % deepPal.length],
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+    }
+    if (this.fireworks) this.frame.classList.add('show');
     const paletteSPlus = ['#ffd454', '#fff59d', '#ff6b9d', '#5ce1ff', '#7dffb8', '#ffffff'];
     const paletteS     = ['#ffd454', '#ffaa33', '#5ce1ff', '#ffffff'];
     const paletteA     = ['#3de08a', '#7ce8ff', '#ffe066'];
@@ -206,10 +278,33 @@ export class ResultFXManager {
     this.rafId = requestAnimationFrame(loop);
   }
 
+  _launchFirework(w, h) {
+    const cx = w * (0.15 + Math.random() * 0.7);
+    const cy = h * (0.12 + Math.random() * 0.4);
+    const pal = ['#ffd454', '#fff59d', '#7dd3fc', '#ff6b9d', '#ffffff', '#a78bfa'];
+    const color = pal[Math.floor(Math.random() * pal.length)];
+    const n = 46;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const spd = 120 + Math.random() * 90;
+      this.particles.push({ kind: 'spark', x: cx, y: cy, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, life: 1.3, max: 1.3, color });
+    }
+  }
+
   _render(dt) {
     const w = this.canvas.width, h = this.canvas.height;
     const ctx = this.ctx;
     ctx.clearRect(0, 0, w, h);
+
+    if (this.fireworks) {
+      this.fireworkTimer -= dt;
+      if (this.fireworkTimer <= 0) {
+        this.fireworkTimer = 0.45 + Math.random() * 0.5;
+        this._launchFirework(w, h);
+      }
+      // Drop finished sparks so the list never grows without limit.
+      if (this.particles.length > 900) this.particles = this.particles.filter((p) => p.kind !== 'spark' || p.life > 0);
+    }
 
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
@@ -242,6 +337,19 @@ export class ResultFXManager {
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
+      } else if (p.kind === 'spark') {
+        if (p.life <= 0) continue;
+        p.life -= dt;
+        p.vx *= Math.exp(-dt * 1.6);
+        p.vy = p.vy * Math.exp(-dt * 1.6) + 60 * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        ctx.globalAlpha = Math.max(0, p.life / p.max);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
       } else if (p.kind === 'rain') {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
@@ -260,5 +368,7 @@ export class ResultFXManager {
     this.active = false;
     if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
     this.canvas.classList.add('hidden');
+    this.fireworks = false;
+    this.frame?.classList.remove('show');
   }
 }

@@ -1,5 +1,5 @@
 import { t } from '../i18n/runtime.js';
-import { generateSquidSpecimen, calculateFishingScore, getCommentForScore } from '../data/SquidTiersAndComments.js';
+import { generateSquidSpecimen, calculateFishingScore, getCommentForScore, getColossalComment } from '../data/SquidTiersAndComments.js';
 // Pure JavaScript Simulation Engine (Rendering-Independent)
 // Phases: HOME, SEARCH, LURE_HOOK, FIGHT, LANDING, CAPTURE_SCENE, INSPECT, SUCCESS, GAMEOVER
 
@@ -65,7 +65,9 @@ export class GameEngine {
     this.reset();
   }
 
-  reset() {
+  // options.rollColossal: run the 31m-50m encounter roll (only when leaving port).
+  // options.forceLength: fixed size for local testing (see main.js debug hook).
+  reset(options = {}) {
     this.phase = 'HOME';
     this.elapsedTime = 0;
 
@@ -123,7 +125,14 @@ export class GameEngine {
     this.overTensionTimer = 0;
     this.followBonus = 0;
 
-    this.specimen = generateSquidSpecimen();
+    this.specimen = generateSquidSpecimen({
+      rollColossal: Boolean(options.rollColossal),
+      forceLength: Number.isFinite(options.forceLength) ? options.forceLength : null
+    });
+    this.isColossal = Boolean(this.specimen.colossal);
+    this.colossalAlertSent = false;
+    this.lastFightState = 'HOVER';
+    this.finalStandTriggered = false;
     this.maxWinchTemp = 26;
     this.squid = {
       state: 'HOVER',
@@ -159,6 +168,8 @@ export class GameEngine {
       lineSnap: false,
       alarmActive: false,
       alarmType: '',
+      colossalAlert: 0,
+      colossalAction: null,
       statusMessage: t('深海調査船 出港待機中')
     };
 
@@ -166,8 +177,8 @@ export class GameEngine {
     this.result = null;
   }
 
-  startGame() {
-    this.reset();
+  startGame(options = {}) {
+    this.reset({ rollColossal: true, forceLength: options.forceLength });
     this.phase = 'SEARCH';
     this.events.statusMessage = t('ソナー反応地点へ操船し、22m以内で「↓ 繰出/投下」を押してください。');
     return this.getSnapshot();
@@ -220,7 +231,12 @@ export class GameEngine {
       rank: scored.rank,
       tier: this.specimen.tier,
       tierName: this.specimen.tierDef.name,
-      comment: getCommentForScore(scored.score, 'fishing'),
+      comment: this.isColossal
+        ? getColossalComment(this.specimen.lengthMeters, scored.evaluation)
+        : getCommentForScore(scored.score, 'fishing'),
+      evaluation: scored.evaluation || null,
+      colossal: this.isColossal,
+      colossalClass: this.isColossal ? this.specimen.tierDef.name : null,
       specimen: this.specimen
     };
     this.events.statusMessage = t('ダイオウイカ揚収成功！クレーンで甲板へ引き揚げています...');
@@ -308,6 +324,11 @@ export class GameEngine {
       this.squid.stageTimer = 0;
       this.squid.distanceToBait = 7.4;
       this.events.statusMessage = t('深海到達！ダイオウイカが接近中。抱え込み（WRAP）の瞬間に「フッキング」を押してください！');
+      // 31m-50m: fire the size-based full-screen warning once, as the ROV camera takes over.
+      if (this.isColossal && !this.colossalAlertSent) {
+        this.colossalAlertSent = true;
+        this.events.colossalAlert = this.specimen.tierDef.alertLevel || 1;
+      }
     }
   }
 
@@ -432,9 +453,20 @@ export class GameEngine {
       }
     }
 
-    if (s.state === 'ESCAPE') s.stamina = Math.max(0, s.stamina - dt * 6.0);
+    if (this.isColossal) {
+      // 31m-50m: faster drain while thrashing, and natural recovery only up to 35% of max
+      // (recovery never pushes stamina down, it only stops at the cap).
+      if (s.state === 'ESCAPE') s.stamina = Math.max(0, s.stamina - dt * 6.5);
+      else if (s.state === 'JET_SWIM') s.stamina = Math.max(0, s.stamina - dt * 3.2);
+      else {
+        const recoveryCap = s.staminaMax * 0.35;
+        if (s.stamina < recoveryCap) s.stamina = Math.min(recoveryCap, s.stamina + dt * 0.5);
+      }
+    } else if (s.state === 'ESCAPE') s.stamina = Math.max(0, s.stamina - dt * 6.0);
     else if (s.state === 'JET_SWIM') s.stamina = Math.max(0, s.stamina - dt * 2.8);
     else s.stamina = Math.min(100, s.stamina + dt * 0.5);
+
+    if (this.isColossal) this._emitColossalActions(s);
 
     const shipSpd = Math.hypot(this.ship.vx, this.ship.vz);
     let align = 0;
@@ -460,7 +492,13 @@ export class GameEngine {
       reelLoad = winch * 56;
     }
 
-    const rawTension = ((baseLoad + squidPull + reelLoad) * (1.0 - this.followBonus)) / this.stats.wireStrength;
+    let rawTension = ((baseLoad + squidPull + reelLoad) * (1.0 - this.followBonus)) / this.stats.wireStrength;
+    if (this.isColossal && winch <= 0) {
+      // Safety ceiling: without reeling in, a 31m-50m thrash can not snap the line by itself.
+      // Following the squid with the ship lowers the ceiling from 94% toward 84%.
+      const followRatio = Math.min(1, this.followBonus / 0.40);
+      rawTension = Math.min(rawTension, 94 - followRatio * 10);
+    }
     const targetTension = Math.max(4, Math.min(118, rawTension));
     const responseRate = winch < 0 ? 7.5 : (isThrashing && winch > 0 ? 5.8 : 4.2);
     this.tension += (targetTension - this.tension) * Math.min(1, dt * responseRate);
@@ -491,7 +529,10 @@ export class GameEngine {
     }
     if (this.winchTemp >= 115) { this._fail('WINCH_OVERHEAT'); return; }
 
-    const reelSpeed = winch > 0 ? winch * (28 + 20 * drag) * (1.0 - Math.min(0.62, squidPull / 110)) : winch * 22;
+    // 31m-50m: the heavier body reels in slower (tierDef.reelSpeedMult), so a well-played
+    // fight lasts about 75-85s (31m) up to 125-135s (50m).
+    const reelMult = td.reelSpeedMult || 1.0;
+    const reelSpeed = winch > 0 ? winch * (28 + 20 * drag) * (1.0 - Math.min(0.62, squidPull / 110)) * reelMult : winch * 22;
     const stripSpeed = (s.state === 'ESCAPE' ? 26 : s.state === 'JET_SWIM' ? 9 : 0) * (1.0 - drag * 0.78) * staminaFactor;
     this.depth = Math.max(0, Math.min(920, this.depth - (reelSpeed - stripSpeed) * dt));
 
@@ -507,6 +548,10 @@ export class GameEngine {
 
     if (this.depth <= 0.5) {
       this.depth = 0;
+      if (this.isColossal && !this.finalStandTriggered) {
+        this.finalStandTriggered = true;
+        this.events.colossalAction = Math.random() < 0.5 ? 'SHIP_GRAB' : 'BEAK_SNAP';
+      }
       this.phase = 'LANDING';
       this.landing.stage = 0;
       this.landing.craneNormalized = 0.85;
@@ -515,6 +560,22 @@ export class GameEngine {
       this.squid.state = 'HOVER';
       this.events.statusMessage = t('海面到達！ロール・静止・波頂点の3条件が揃って大型クレーンボタンが光ったら押してください！');
     }
+  }
+
+  // 31m-50m boss actions (visual only; they do not change the physics):
+  //  - a new ESCAPE while stamina >= 50%: INK_BURST or ABYSSAL_PULSE
+  //  - a new thrash in the last 50m before the surface: SHIP_GRAB or BEAK_SNAP
+  _emitColossalActions(s) {
+    const startedThrash = (s.state === 'ESCAPE' || s.state === 'JET_SWIM') && s.state !== this.lastFightState;
+    if (startedThrash) {
+      if (this.depth < 50) {
+        this.finalStandTriggered = true;
+        this.events.colossalAction = Math.random() < 0.5 ? 'SHIP_GRAB' : 'BEAK_SNAP';
+      } else if (s.state === 'ESCAPE' && s.stamina >= s.staminaMax * 0.5) {
+        this.events.colossalAction = Math.random() < 0.5 ? 'INK_BURST' : 'ABYSSAL_PULSE';
+      }
+    }
+    this.lastFightState = s.state;
   }
 
   _updateLandingPhase(dt, controls, waveState) {
@@ -527,6 +588,9 @@ export class GameEngine {
       s.surfaceResisting = !s.surfaceResisting;
       s.surfaceResistTimer = s.surfaceResisting ? (2.0 + Math.random() * 1.1) : (3.8 + Math.random() * 1.4);
       s.state = s.surfaceResisting ? 'FLARE' : 'HOVER';
+      if (this.isColossal && s.surfaceResisting) {
+        this.events.colossalAction = Math.random() < 0.5 ? 'SHIP_GRAB' : 'BEAK_SNAP';
+      }
     }
 
     const phase = waveState ? waveState.phase : 0;
@@ -577,6 +641,8 @@ export class GameEngine {
 
     this.events.hookSuccess = false;
     this.events.lineSnap = false;
+    this.events.colossalAlert = 0;
+    this.events.colossalAction = null;
     this.events.alarmActive = false;
     this.events.alarmType = '';
 

@@ -1,4 +1,4 @@
-import { getLanguage } from '../i18n/runtime.js';
+import { getLanguage, t } from '../i18n/runtime.js';
 import { rankText } from './messages.js';
 
 const gameUrl = 'https://chameleonjp-lab.github.io/ikagetto/';
@@ -28,6 +28,10 @@ export function makeShareText(mode, result = {}, includeUrl = true) {
     const position = formatPosition(result.rankPosition, result.playCount);
     lines.push(result.rankPosition > 0 ? rankText('resultPosition', { position }) : position);
 
+    if (mode === 'fishing' && result.colossalClass) {
+      // 31m-50m: lead with the size class and the exact length.
+      lines.push(rankText('colossalCatch', { class: t(result.colossalClass), length: result.lengthMeters }));
+    }
     if (mode === 'fishing') {
       lines.push(rankText('fishingMetrics', {
         length: result.lengthMeters,
