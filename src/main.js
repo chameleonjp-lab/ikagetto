@@ -15,6 +15,7 @@ import { MiniGameAudio } from './audio/MiniGameAudio.js';
 import { applyStudioEnvironment } from './models/StudioEnv.js';
 import { ResultFXManager } from './ui/ResultFX.js';
 import { FishingTutorial } from './ui/FishingTutorial.js';
+import { GuideStore } from './ui/MiniGameCoach.js';
 
 // =============================================================================
 // 1. PROCEDURAL WEB AUDIO ENGINE
@@ -310,6 +311,10 @@ const hud = new HUDManager(appContainer, {
     if (engine.phase === 'FIGHT') userSwappedInFight = !userSwappedInFight;
     else manualSwapToggle = !manualSwapToggle;
   },
+  onResetGuides: () => {
+    GuideStore.resetAll();
+    tutorial.resetForReplay();
+  },
   onToggleMute: () => {
     audio.initOnGesture();
     const m = audio.toggleMute();
@@ -319,6 +324,7 @@ const hud = new HUDManager(appContainer, {
 });
 
 window.addEventListener('pointerdown', () => audio.initOnGesture(), { once: true });
+hud.setGuideReplayVisible(GuideStore.anySeen());
 
 // =============================================================================
 // 4. PRE-ALLOCATED SCRATCH VECTORS & MAIN LOOP
@@ -389,6 +395,9 @@ function animate(now) {
   const wave = oceanEnv.getWaveStateAt(engine.ship.x, engine.ship.z, totalTime);
   const simDt = tutorial.isPaused() ? 0 : dt;
   const snap = engine.update(simDt, controls, wave);
+
+  // Offer "show the first-play guide again" on the home screen once any guide was seen.
+  if (snap.phase === 'HOME' && prevPhase !== 'HOME') hud.setGuideReplayVisible(GuideStore.anySeen());
 
   if (snap.phase === 'CAPTURE_SCENE' && prevPhase !== 'CAPTURE_SCENE') {
     audio.playCaptureFanfare();

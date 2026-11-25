@@ -1,19 +1,20 @@
+import { GuideStore } from './MiniGameCoach.js';
+
 // First-Time Play Contextual Spotlight Tutorial for Deep-Sea Giant Squid Fishing
 // Dims everything outside the target UI element using a true spotlight cutout,
-// pauses gameplay while the player reads, explains numbers/gauges & exact actions,
-// and saves completion state in localStorage (with optional replay).
+// pauses gameplay while the player reads, and saves completion state (replayable).
+//
+// Timing rules: a card never appears the instant a phase starts. It waits until the
+// phase's own big callout ("HOOKED!!" etc.) has been seen, so the dramatic moment is
+// not covered by the dim layer. Nothing is shown during the HOOK UP window itself,
+// because pausing there would break the timing the player is trying to learn.
 export class FishingTutorial {
   constructor(rootContainer) {
     this.root = rootContainer;
-    this.STORAGE_KEY = 'architeuthis_fishing_tut_done_v1';
-    this.enabled = true;
-    try {
-      if (window.localStorage && localStorage.getItem(this.STORAGE_KEY) === '1') {
-        this.enabled = false;
-      }
-    } catch (_) {}
+    this.enabled = !GuideStore.has('fishing:done');
 
     this.shownSteps = new Set();
+    this._armedAt = new Map();
     this.queue = [];
     this.currentStep = null;
     this.active = false;
@@ -92,6 +93,7 @@ export class FishingTutorial {
       .tut-actions {
         margin-top: 10px; display: flex; justify-content: flex-end; gap: 8px;
       }
+      .tut-pause-note { margin-top: 6px; font-size: 10.5px; color: #8cb4d6; text-align: center; }
       .tut-ok-btn {
         width: 100%; padding: 10px 14px; border-radius: 10px;
         border: 1px solid rgba(255, 232, 130, 0.7);
@@ -113,14 +115,15 @@ export class FishingTutorial {
       <div id="tut-spotlight"></div>
       <div id="tut-card">
         <div class="tut-badge-row">
-          <span class="tut-step-tag" id="tut-tag">初回ガイド 1 / 6</span>
-          <button type="button" class="tut-skip-btn" id="tut-skip">ガイドをスキップ</button>
+          <span class="tut-step-tag" id="tut-tag">はじめてガイド 1 / 6</span>
+          <button type="button" class="tut-skip-btn" id="tut-skip">今後ガイドを出さない</button>
         </div>
         <div class="tut-title" id="tut-title">--</div>
         <div class="tut-body" id="tut-body">--</div>
         <div class="tut-actions">
-          <button type="button" class="tut-ok-btn" id="tut-ok">わかった！次へ</button>
+          <button type="button" class="tut-ok-btn" id="tut-ok">わかった</button>
         </div>
+        <div class="tut-pause-note">この説明が出ている間、ゲームは止まっています</div>
       </div>
     `;
     this.root.appendChild(this.el);
@@ -142,6 +145,8 @@ export class FishingTutorial {
     });
     this.elSkip.addEventListener('click', (e) => {
       e.stopPropagation();
+      // "Don't show guides again" also silences the butcher / cooking tips.
+      GuideStore.mark('all:off');
       this.markCompleted();
       this.closeAll();
     });
@@ -156,19 +161,26 @@ export class FishingTutorial {
 
   markCompleted() {
     this.enabled = false;
-    try {
-      if (window.localStorage) localStorage.setItem(this.STORAGE_KEY, '1');
-    } catch (_) {}
+    GuideStore.mark('fishing:done');
   }
 
   resetForReplay() {
     this.enabled = true;
     this.shownSteps.clear();
+    this._armedAt.clear();
     this.queue = [];
     this.currentStep = null;
-    try {
-      if (window.localStorage) localStorage.removeItem(this.STORAGE_KEY);
-    } catch (_) {}
+  }
+
+  // True once `cond` has held continuously for `delaySec`.
+  _armed(id, cond, delaySec) {
+    if (!cond || this.shownSteps.has(id)) {
+      this._armedAt.delete(id);
+      return false;
+    }
+    const now = performance.now();
+    if (!this._armedAt.has(id)) this._armedAt.set(id, now);
+    return now - this._armedAt.get(id) >= delaySec * 1000;
   }
 
   closeAll() {
@@ -207,7 +219,7 @@ export class FishingTutorial {
     this.elTag.textContent = this.currentStep.tag;
     this.elTitle.textContent = this.currentStep.title;
     this.elBody.innerHTML = this.currentStep.html;
-    this.elOk.textContent = this.queue.length > 0 ? '次へ ▶' : (this.currentStep.okLabel || 'わかった！操作する');
+    this.elOk.textContent = this.queue.length > 0 ? '次へ ▶' : (this.currentStep.okLabel || 'わかった');
     this.el.classList.remove('hidden');
 
     // Position spotlight on next frame so target HUD panel layout is settled
@@ -264,92 +276,90 @@ export class FishingTutorial {
   // Called every frame from main loop with live fishing snapshot
   checkTriggers(snap) {
     if (!this.enabled || !snap) return;
+    const phase = snap.phase;
 
-    // 1. SEARCH Start -> Explain Sonar + 360° Joystick
-    if (snap.phase === 'SEARCH' && !this.shownSteps.has('search_sonar')) {
+    // 1. SEARCH: let the player see the ocean for a moment, then explain sonar + stick.
+    if (this._armed('search_sonar', phase === 'SEARCH', 1.0)) {
       this._enqueue([
         {
           id: 'search_sonar',
-          tag: '初回ガイド 1 / 6（ソナーの見方）',
+          tag: 'はじめてガイド 1 / 6',
           selector: '#hud-sonar-panel',
-          title: 'まずはソナーでダイオウイカを探そう！',
-          html: `<ul>
-            <li><b>大きな数字（〇〇 m）</b>：ダイオウイカの反応地点までの距離です。</li>
-            <li><b>矢印（◀ 左方向など）</b>：船を進める向きを教えてくれます。</li>
-            <li><b>グラフの点線（投下OKライン）</b>：<b>22m以内</b>に近づくとグラフが緑色になり仕掛けを降ろせます！</li>
-          </ul>`
+          title: 'ソナーで、イカのいる場所をさがす',
+          html: '大きな数字はイカまでの距離、矢印は船を進める向きです。<b>22m以内</b>に近づくと、グラフが緑になります。'
         },
         {
           id: 'search_steer',
-          tag: '初回ガイド 2 / 6（船の操舵）',
+          tag: 'はじめてガイド 2 / 6',
           selector: '#ship-keypad',
-          title: '360°スティックで反応地点の真上へ！',
-          html: `左下の<b>丸いスティックを指でスワイプ</b>して船を動かせます。<br>ソナーの距離が<b>22m以下（緑の「OK!」）</b>になるまで近づけよう！`,
-          okLabel: 'わかった！船を動かす'
+          title: '丸いスティックで、船を動かす',
+          html: '指を置いてすべらせると、その向きに船が進みます。ソナーの数字が<b>22m以下</b>になるまで近づこう。',
+          okLabel: '船を動かす'
         }
       ]);
       return;
     }
 
-    // 2. Arrived within 22m during SEARCH -> Explain Reel Out button
-    if (snap.phase === 'SEARCH' && snap.distanceToTarget <= 22 && !this.shownSteps.has('search_drop')) {
+    // 2. Arrived above the target: explain the drop button.
+    if (this._armed('search_drop', phase === 'SEARCH' && snap.distanceToTarget <= 22, 0.4)) {
       this._enqueue([
         {
           id: 'search_drop',
-          tag: '初回ガイド 3 / 6（仕掛け投下）',
+          tag: 'はじめてガイド 3 / 6',
           selector: '#btn-reel-out',
-          title: '真上に到達！「↓ 繰出/投下」を長押し！',
-          html: `光っている<b>「↓ 繰出/投下」ボタンを長押し</b>すると、水深600mの深海へ仕掛けを降ろせます。<br>右上の水深（<b>〇〇 M</b>）が600m付近に到達するとダイオウイカが近づいてきます！`,
-          okLabel: 'わかった！仕掛けを降ろす'
+          title: '「↓ 繰出/投下」を長押しする',
+          html: '仕掛けが深海へ降りていきます。水深が<b>600m</b>に届くと、イカが近づいてきます。',
+          okLabel: '仕掛けを降ろす'
         }
       ]);
       return;
     }
 
-    // 3. LURE_HOOK (Deep-sea approach & bite) -> Explain waiting for HOOK UP!! & Hooking button
-    if (snap.phase === 'LURE_HOOK' && !this.shownSteps.has('lure_hook')) {
+    // 3. LURE_HOOK: explain "wait" BEFORE the bite. Never pause during the HOOK UP window.
+    if (this._armed('lure_hook', phase === 'LURE_HOOK' && snap.squid?.lureStage !== 'WRAP', 1.0)) {
       this._enqueue([
         {
           id: 'lure_hook',
-          tag: '初回ガイド 4 / 6（深海フッキング）',
+          tag: 'はじめてガイド 4 / 6',
           selector: '#btn-hook',
-          title: '早合わせ厳禁！「HOOK UP!!」で一撃！',
-          html: `最初はダイオウイカが腕で餌を探っています。ここではまだ押さずに待とう！<br>餌を完全に抱え込むと<b>「HOOK UP!!」</b>の文字が出て、赤く光る<b>「フッキング」ボタン</b>が出現するので、すかさずタップ！`,
-          okLabel: 'わかった！タイミングを待つ'
+          title: 'まだ押さずに、イカを待つ',
+          html: '腕で餌をさわっている間に押すと、イカが逃げます。<b>「HOOK UP!!」</b>の文字が出たら、赤く光る<b>「フッキング」</b>をすぐ押そう。数秒で消えます。',
+          okLabel: '待つ'
         }
       ]);
       return;
     }
 
-    // 4. FIGHT Start -> Explain the 4 meters & Reel In
-    if (snap.phase === 'FIGHT' && !this.shownSteps.has('fight_gauges')) {
+    // 4. FIGHT: let the "掛かった!!" callout play first, then explain the meters.
+    if (this._armed('fight_gauges', phase === 'FIGHT', 1.3)) {
       this._enqueue([
         {
           id: 'fight_gauges',
-          tag: '初回ガイド 5 / 6（計器と巻き上げ）',
+          tag: 'はじめてガイド 5 / 6',
           selector: '#top-gauges',
-          title: '3つの計器を見ながら水深0mまで巻き上げろ！',
-          html: `<ul>
-            <li><b>ライン張力</b>：暴れている時に巻き続けると急上昇！<b>赤くなったら「↑ 巻上」を止めるか「↓ 繰出/投下」で糸を出して逃がそう！</b></li>
-            <li><b>ウインチ温度</b>：高温になると過熱警告。少し休ませて冷却！</li>
-            <li><b>イカスタミナ</b>：減るほど暴れにくくなり一気に巻き上げられます。</li>
-          </ul>普段は右下の<b>「↑ 巻上」長押し</b>で引き上げよう！`,
-          okLabel: 'わかった！ファイト開始！'
+          title: '「↑ 巻上」を長押しして引き上げる',
+          html: `水深0mまで巻き上げれば成功です。上の計器を見ながら巻こう。
+          <ul>
+            <li><b>ライン張力</b>が赤くなったら、巻上から指をはなすか「↓ 繰出」で糸を出す</li>
+            <li><b>ウインチ温度</b>が高いときも、少し休ませる</li>
+            <li><b>イカスタミナ</b>が減るほど、楽に巻ける</li>
+          </ul>`,
+          okLabel: '巻き上げる'
         }
       ]);
       return;
     }
 
-    // 5. LANDING (Surface Crane) -> Explain 3 green conditions & 3 taps
-    if (snap.phase === 'LANDING' && !this.shownSteps.has('landing_crane')) {
+    // 5. LANDING: after the "海面到達!!" callout, explain the crane.
+    if (this._armed('landing_crane', phase === 'LANDING', 1.2)) {
       this._enqueue([
         {
           id: 'landing_crane',
-          tag: '初回ガイド 6 / 6（クレーン揚収）',
+          tag: 'はじめてガイド 6 / 6',
           selector: '#crane-timing-panel',
-          title: '3条件が緑に揃ったらクレーン作動！',
-          html: `海面まで引き上げ成功！最後はクレーンで船上へ引き上げます。<br><b>「ロール OK」「イカ静止 OK」「波頂点 OK!」</b>の3つが緑に揃い、オレンジの大きなボタンが光った瞬間にタップ！<br>これを<b>3回（0/3 → 3/3）</b>成功させれば捕獲完了です！`,
-          okLabel: 'わかった！捕獲する！',
+          title: '3つが緑になったら、クレーンを押す',
+          html: '「ロール」「イカ静止」「波頂点」の3つが緑になると、オレンジのボタンが光ります。その瞬間に押す操作を<b>3回</b>成功させると捕獲です。',
+          okLabel: '引き上げる',
           isFinal: true
         }
       ]);
