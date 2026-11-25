@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>イカゲット – ランキング</title>
-  <link rel="stylesheet" href="./src/ranking/page.css">
+  <link rel="stylesheet" href="./src/ranking/page.css?v=3">
 </head>
 <body>
   <main class="rank-page">
@@ -27,12 +27,23 @@
     <section id="ranking-panel" role="tabpanel" aria-labelledby="fishing-tab" tabindex="0">
       <div class="status" id="board-status" role="status"></div>
       <button class="retry" id="retry" type="button" hidden>再読み込み</button>
+      <nav class="board-pagination" data-pagination aria-label="ページ切り替え" hidden>
+        <button type="button" data-page-step="-1">前へ</button>
+        <span data-page-label aria-live="polite"></span>
+        <button type="button" data-page-step="1">次へ</button>
+      </nav>
       <table id="board-table" hidden>
         <thead><tr><th id="rank-label" scope="col">順位</th><th id="name-label" scope="col">名前</th><th id="score-label" scope="col">スコア</th></tr></thead>
         <tbody id="board-rows"></tbody>
       </table>
+      <nav class="board-pagination" data-pagination aria-label="ページ切り替え" hidden>
+        <button type="button" data-page-step="-1">前へ</button>
+        <span data-page-label></span>
+        <button type="button" data-page-step="1">次へ</button>
+      </nav>
     </section>
+    <a class="detail-link" id="ranking-details" href="https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=ikagetto&amp;lang=ja&amp;mode=fishing">ランキング詳細</a>
   </main>
-  <script type="module" src="./src/ranking/page.js"></script>
+  <script type="module" src="./src/ranking/page.js?v=3"></script>
 </body>
 </html>
