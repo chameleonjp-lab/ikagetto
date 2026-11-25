@@ -669,6 +669,9 @@ export class CookingStageModels {
       c.position.set((i - 1) * 0.45, 0.26, 0.2 + (i % 2) * 0.14);
     });
     this.mincedGarlicBits.forEach((b) => { b.visible = false; });
+    this._unsplit(this.prepChili);
+    this._unsplit(this.prepMushroom);
+    this._unsplit(this.prepTomato);
     this.prepChili.scale.set(1, 1, 1);
     this.prepMushroom.scale.setScalar(1.7);
     this.prepTomato.scale.setScalar(1.65);
@@ -718,14 +721,53 @@ export class CookingStageModels {
     this.knifeChop = 1.0;
     if (count === 1) {
       this.knifeTargetX = -1.05;
-      this.prepChili.scale.set(0.85, 0.55, 1.25);
+      this._splitInHalf(this.prepChili, 0.09);
     } else if (count === 2) {
       this.knifeTargetX = 0.0;
-      this.prepMushroom.scale.set(1.8, 0.9, 1.8);
+      this._splitInHalf(this.prepMushroom, 0.16);
     } else {
       this.knifeTargetX = 1.05;
-      this.prepTomato.scale.set(1.85, 0.85, 1.85);
+      this._splitInHalf(this.prepTomato, 0.16);
     }
+  }
+
+  // Show a cut: the piece becomes two halves (left / right) with a gap between them,
+  // each tilted slightly outward, instead of just changing size.
+  _splitInHalf(mesh, gap) {
+    const parent = mesh.parent;
+    if (!parent) return;
+    if (!mesh.userData.cutBase) {
+      mesh.userData.cutBase = { pos: mesh.position.clone(), scale: mesh.scale.clone(), rot: mesh.rotation.clone() };
+      const twin = mesh.clone();
+      parent.add(twin);
+      mesh.userData.cutTwin = twin;
+    }
+    const base = mesh.userData.cutBase;
+    const twin = mesh.userData.cutTwin;
+    // Centre of the piece in the parent's space (the chili's geometry is not centred on its origin).
+    mesh.position.copy(base.pos); mesh.scale.copy(base.scale); mesh.rotation.copy(base.rot);
+    mesh.updateMatrixWorld(true);
+    const c = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+    parent.worldToLocal(c);
+    // Halving scale.x about the object's origin moves its centre; place each half so its
+    // centre sits gap/2 left or right of the original centre.
+    const half = (side) => c.x + side * gap * 0.5 - 0.5 * (c.x - base.pos.x);
+    for (const [obj, side] of [[mesh, -1], [twin, 1]]) {
+      obj.visible = true;
+      obj.scale.set(base.scale.x * 0.5, base.scale.y, base.scale.z);
+      obj.position.set(half(side), base.pos.y, base.pos.z);
+      // Tilt only pieces built around their own origin; tilting the chili (whose geometry
+      // sits far from its origin) would swing it away from the board.
+      const tilt = Math.abs(c.x - base.pos.x) < 0.05 ? 0.18 : 0;
+      obj.rotation.set(base.rot.x, base.rot.y, base.rot.z - side * tilt);
+    }
+  }
+
+  _unsplit(mesh) {
+    const base = mesh.userData.cutBase;
+    if (!base) return;
+    mesh.position.copy(base.pos); mesh.scale.copy(base.scale); mesh.rotation.copy(base.rot);
+    if (mesh.userData.cutTwin) mesh.userData.cutTwin.visible = false;
   }
 
   triggerParsleyTap(count) {

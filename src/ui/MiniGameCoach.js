@@ -256,7 +256,7 @@ export class MiniGameCoach {
       .coach-layer {
         position: fixed; inset: 0; z-index: 50; pointer-events: auto;
         background: rgba(2, 8, 18, 0.42);
-        font-family: "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", "Yu Gothic", sans-serif;
+        font-family: "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", "Noto Sans JP", "Yu Gothic", system-ui, sans-serif;
         animation: coachFade 0.18s ease-out;
       }
       .coach-layer.hidden { display: none !important; }
@@ -277,17 +277,17 @@ export class MiniGameCoach {
         background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); overflow: hidden;
       }
       .coach-demo.hidden { display: none; }
-      .coach-kicker { font-size: 10.5px; font-weight: 900; color: #ffe27a; letter-spacing: 0.06em; }
-      .coach-title { font-size: clamp(14.5px, 4vw, 17px); font-weight: 900; color: #fff; line-height: 1.32; margin-top: 2px; }
-      .coach-body { font-size: clamp(12px, 3.3vw, 13.5px); line-height: 1.55; color: #d9ecff; margin-top: 8px; }
+      .coach-kicker { font-size: 12px; font-weight: 900; color: #ffe27a; letter-spacing: 0.06em; }
+      .coach-title { font-size: clamp(17px, 4.8vw, 20px); font-weight: 900; color: #fff; line-height: 1.35; margin-top: 2px; }
+      .coach-body { font-size: clamp(14.5px, 4vw, 16px); font-weight: 700; line-height: 1.6; color: #e6f3ff; margin-top: 8px; }
       .coach-body b { color: #ffd454; }
       .coach-ok {
         width: 100%; margin-top: 10px; padding: 11px 14px; border-radius: 10px;
         border: 1px solid rgba(255, 232, 130, 0.7);
         background: linear-gradient(135deg, #1b7bc4, #28b5e0);
-        color: #fff; font-size: 14.5px; font-weight: 900; cursor: pointer; font-family: inherit;
+        color: #fff; font-size: 16px; font-weight: 900; cursor: pointer; font-family: inherit;
       }
-      .coach-note { margin-top: 6px; font-size: 10.5px; color: #8cb4d6; text-align: center; }
+      .coach-note { margin-top: 6px; font-size: 11.5px; color: #9cc2e0; text-align: center; }
 
       /* Tiny looping gesture demos */
       .coach-demo-track { position: absolute; left: 14px; right: 14px; top: 29px; height: 3px; border-radius: 2px; background: rgba(92, 225, 255, 0.6); }
@@ -323,7 +323,7 @@ export class MiniGameCoach {
       .mg-hint-row { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 3px; flex-wrap: wrap; }
       .mg-hint-row .mg-hint-text { margin-top: 0; }
       .mg-rule-chip {
-        flex: 0 0 auto; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 900;
+        flex: 0 0 auto; padding: 3px 11px; border-radius: 999px; font-size: 13.5px; font-weight: 900;
         background: rgba(92, 225, 255, 0.16); border: 1px solid rgba(92, 225, 255, 0.75); color: #aef0ff;
       }
       .mg-rule-chip.warn { background: rgba(255, 212, 84, 0.18); border-color: #ffd454; color: #ffe58a; }

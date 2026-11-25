@@ -7,6 +7,7 @@ import { ButcherStageModels } from '../models/ButcherModels.js';
 import { getCommentForScore } from '../data/SquidTiersAndComments.js';
 import { MiniGameCoach, drawGhostSwipe, drawGhostTap, drawGhostCircle } from '../ui/MiniGameCoach.js';
 import { adaptText } from '../ui/DeviceProfile.js';
+import { SlashFX, drawOutlinedText, labelPx } from '../ui/SlashFX.js';
 
 // Each step specifies exact 3D camera focus (fx, fz) AND exact 3D world start/end points
 // so the on-screen glowing chevron guide aligns 1:1 with the anatomical part being cut!
@@ -88,6 +89,10 @@ export class ButcherGame {
     this.lastAngle = null;
     this.toolWorldX = 0;
     this.toolWorldZ = 0;
+    this.trail = [];
+    this.fx = new SlashFX();
+    this.canvasW = 1;
+    this.canvasH = 1;
     this.feedbackTimer = 0;
 
     this._projA = new THREE.Vector3();
@@ -107,7 +112,7 @@ export class ButcherGame {
       st.textContent = `
         .mg-overlay {
           position: fixed; inset: 0; z-index: 42; pointer-events: none;
-          font-family: "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", "Yu Gothic", sans-serif;
+          font-family: "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", "Noto Sans JP", "Yu Gothic", system-ui, sans-serif;
           color: #eef6ff; user-select: none; -webkit-user-select: none;
         }
         .mg-overlay.hidden { display: none !important; }
@@ -116,11 +121,15 @@ export class ButcherGame {
           position: fixed; top: 54px; left: 50%; transform: translateX(-50%);
           width: min(500px, calc(100vw - 20px));
           background: rgba(6, 18, 34, 0.90); border: 1px solid rgba(110, 210, 255, 0.45);
-          border-radius: 14px; padding: 9px 14px; text-align: center;
+          border-radius: 14px; padding: 10px 14px 11px; text-align: center;
           backdrop-filter: blur(8px); pointer-events: auto;
         }
-        .mg-step-badge { font-size: 11px; font-weight: 800; color: #ffd46b; letter-spacing: 0.05em; }
-        .mg-hint-text { font-size: clamp(13.5px, 3.8vw, 17px); font-weight: 800; color: #ffffff; margin-top: 2px; }
+        .mg-step-badge { font-size: clamp(12.5px, 3.4vw, 14px); font-weight: 900; color: #ffd46b; letter-spacing: 0.04em; line-height: 1.35; }
+        /* The one line that says what to do now: large, heavy, with a soft dark edge so it reads over the 3D scene. */
+        .mg-hint-text {
+          font-size: clamp(17px, 4.9vw, 22px); font-weight: 900; color: #ffffff; margin-top: 3px; line-height: 1.35;
+          letter-spacing: 0.02em; text-shadow: 0 1px 0 rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.8);
+        }
         .mg-prog-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); margin-top: 6px; overflow: hidden; }
         .mg-prog-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #3de08a, #5ce1ff); transition: width 0.2s ease; }
         .mg-gesture-canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: auto; touch-action: none; }
@@ -132,6 +141,7 @@ export class ButcherGame {
         }
         .mg-feedback.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         .mg-feedback.ok { color: #7dffb8; }
+        .mg-feedback { -webkit-text-stroke: 1.2px rgba(0, 10, 20, 0.75); paint-order: stroke fill; }
         .mg-feedback.ng { color: #ff7a7a; }
         .mg-res-screen {
           position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: space-between;
@@ -243,6 +253,7 @@ export class ButcherGame {
       this.stepIdle = 0;
       this.dragStart = { x: pt.x, y: pt.y, t: performance.now() };
       this.dragCurrent = pt;
+      this.trail = [pt];
       this.circleSweep = 0;
       this.lastAngle = Math.atan2(pt.y - 0.52, pt.x - 0.5);
 
@@ -254,6 +265,7 @@ export class ButcherGame {
         const ratio = ok ? Math.max(0.62, 1.0 - dist / (step.zone * 0.65)) : 0.14;
         if (step.se === 'ink') { if (ok) this.audio?.playPop(); else this.audio?.playInkBurst(); }
         else this._playStepSE(step.se);
+        if (ok) this._slashAtFocus(step);
         this._finishStep(ok, Math.round(step.maxScore * ratio), ok ? '完璧な手さばき！' : (step.id === 'ink' ? '墨袋破裂!! 真っ黒だ!' : '少しズレてしまった…'));
         this.pointerDown = false;
       }
@@ -276,12 +288,15 @@ export class ButcherGame {
         this.lastAngle = a;
       }
       this.dragCurrent = pt;
+      this.trail.push(pt);
+      if (this.trail.length > 14) this.trail.shift();
     });
 
     const onUp = () => {
       if (!this.active || this.mode !== 'PLAY' || !this.pointerDown) return;
       this.pointerDown = false;
       this._evaluateGesture();
+      this.trail = [];
     };
     this.guideCanvas.addEventListener('pointerup', onUp);
     this.guideCanvas.addEventListener('pointercancel', onUp);
@@ -295,6 +310,19 @@ export class ButcherGame {
     else if (se === 'pen') this.audio.playPenPull();
     else if (se === 'pop') this.audio.playPop();
     else if (se === 'peel') this.audio.playPeel();
+  }
+
+  // Flash along the player's own stroke (successful cut).
+  _slashStroke() {
+    const w = this.canvasW, h = this.canvasH;
+    this.fx.addSlash(this.dragStart.x * w, this.dragStart.y * h, this.dragCurrent.x * w, this.dragCurrent.y * h);
+  }
+
+  // Flash across the part being worked on (timing steps have no stroke).
+  _slashAtFocus(step) {
+    const c = this._projectToScreen([step.fx, 0.5, step.fz], this.canvasW, this.canvasH, this._projA);
+    const half = Math.min(this.canvasW, this.canvasH) * 0.2;
+    this.fx.addSlash(c.x - half, c.y + half * 0.45, c.x + half, c.y - half * 0.45);
   }
 
   _evaluateGesture() {
@@ -316,6 +344,7 @@ export class ButcherGame {
         this._playStepSE(step.se);
         this.models.knifeSwing = 1.0;
         this.models.burstParticles(step.fx, step.fz, 0xffe8e4, 20);
+        this._slashStroke();
         this.subCount++;
         if (this.subCount >= step.count) this._finishStep(true, Math.round(step.maxScore * 0.95), 'リズミカルに綺麗に切断！');
         else this._refreshRuleChip();
@@ -323,26 +352,35 @@ export class ButcherGame {
     } else if (step.type === 'swipe_v') {
       const ok = Math.abs(dy) > 0.15;
       this._playStepSE(step.se);
+      if (ok) this._slashStroke();
       this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.95 : 0.25)), ok ? 'スパッと綺麗に決まった！' : '切り込みが浅かった…');
     } else if (step.type === 'swipe_r') {
       const ok = dx > 0.15;
       this._playStepSE(step.se);
+      if (ok) this._slashStroke();
       this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.95 : 0.25)), ok ? '一閃！美しい切断面！' : '長さが足りなかった…');
     } else if (step.type === 'slow_swipe_l') {
       const ok = dx < -0.15 && dtSec >= 0.40;
       this._playStepSE(step.se);
+      if (ok) this._slashStroke();
       this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.96 : 0.22)), ok ? '軟甲が1本丸ごと抜けた！' : '速すぎて途中で折れた！');
     } else if (step.type === 'slow_swipe_r') {
       const ok = dx > 0.14 && dtSec >= 0.36;
       this._playStepSE(step.se);
+      if (ok) this._slashStroke();
       this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.95 : 0.24)), ok ? '肝臓を無傷で分離！' : '肝臓が潰れてしまった…');
     } else if (step.type === 'fast_swipe_u') {
       const ok = dy < -0.14 && dtSec < 0.85;
       this._playStepSE(step.se);
+      if (ok) this._slashStroke();
       this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.96 : 0.24)), ok ? 'つるりと綺麗な白身に！' : '皮が千切れて残った…');
     } else if (step.type === 'circle') {
       const ok = this.circleSweep >= Math.PI * 1.1;
       this._playStepSE(step.se);
+      if (ok) {
+        const c = this._projectToScreen(step.p0, this.canvasW, this.canvasH, this._projA);
+        this.fx.addRing(c.x, c.y, Math.min(this.canvasW, this.canvasH) * 0.16);
+      }
       this._finishStep(ok, Math.round(step.maxScore * (ok ? 0.95 : 0.24)), ok ? '巨大眼球を綺麗に摘出！' : '目玉に傷がついた…');
     }
   }
@@ -427,6 +465,8 @@ export class ButcherGame {
     this.totalScore = 0;
     this.cursorPhase = 0;
     this.models.resetForNewButcher();
+    this.fx.clear();
+    this.trail = [];
 
     this.el.classList.remove('hidden');
     this.elTop.classList.remove('hidden');
@@ -454,9 +494,14 @@ export class ButcherGame {
       this.guideCanvas.width = w;
       this.guideCanvas.height = h;
     }
+    this.canvasW = w;
+    this.canvasH = h;
     const ctx = this.gCtx;
     ctx.clearRect(0, 0, w, h);
-    if (this.mode !== 'PLAY' || this.stepIdx >= BUTCHER_STEPS_15.length) return;
+    if (this.mode !== 'PLAY' || this.stepIdx >= BUTCHER_STEPS_15.length) {
+      this.fx.draw(ctx, this._lastDt || 0.016);
+      return;
+    }
 
     const step = BUTCHER_STEPS_15[this.stepIdx];
     const pulse = 0.55 + 0.45 * Math.sin(this.time * 7.5);
@@ -476,10 +521,7 @@ export class ButcherGame {
       ctx.strokeStyle = '#5ce1ff';
       ctx.lineWidth = 2.5;
       ctx.strokeRect(bx, by, bw, bh);
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 15px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(adaptText(t('▼ 緑に重なったらタップ ▼')), w * 0.5, by - 14);
+      drawOutlinedText(ctx, adaptText(t('▼ 緑に重なったらタップ ▼')), w * 0.5, by - 14, { size: labelPx(w), maxWidth: w - 20 });
     } else if (step.type === 'circle' && step.p0) {
       const c = this._projectToScreen(step.p0, w, h, this._projA);
       const rad = Math.min(w, h) * 0.16;
@@ -535,10 +577,7 @@ export class ButcherGame {
       ctx.stroke();
 
       if (step.count) {
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(t('残り {0} 回', step.count - this.subCount), (s0.x + s1.x) * 0.5, Math.min(s0.y, s1.y) - 18);
+        drawOutlinedText(ctx, t('残り {0} 回', step.count - this.subCount), (s0.x + s1.x) * 0.5, Math.min(s0.y, s1.y) - 22, { size: labelPx(w), color: '#ffe066' });
       }
     }
 
@@ -546,14 +585,10 @@ export class ButcherGame {
       this._drawGhost(ctx, step, w, h);
     }
 
-    if (this.pointerDown) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(this.dragStart.x * w, this.dragStart.y * h);
-      ctx.lineTo(this.dragCurrent.x * w, this.dragCurrent.y * h);
-      ctx.stroke();
+    if (this.pointerDown && step.type !== 'timing') {
+      this.fx.drawBladeTrail(ctx, this.trail.map((p) => ({ x: p.x * w, y: p.y * h })));
     }
+    this.fx.draw(ctx, this._lastDt || 0.016);
   }
 
   _drawGhost(ctx, step, w, h) {
@@ -576,6 +611,7 @@ export class ButcherGame {
     if (!this.active) return;
     const safeDt = Math.min(0.05, dt);
     this.time += safeDt;
+    this._lastDt = safeDt;
 
     const step = BUTCHER_STEPS_15[Math.min(this.stepIdx, BUTCHER_STEPS_15.length - 1)];
     // Hold the timing cursor still while a guide card is up so nothing moves behind it.
@@ -601,6 +637,9 @@ export class ButcherGame {
       this.camTarget.lerp(this.camDesiredTarget, Math.min(1, safeDt * 5.5));
       this.camera.position.set(this.camTarget.x, 4.9 * portraitPull, this.camTarget.z + 3.2 * portraitPull);
       this.camera.lookAt(this.camTarget);
+      // Short shake right after a successful cut.
+      this.camera.position.x += this.fx.shakeOffset();
+      this.camera.position.z += this.fx.shakeOffset();
     }
 
     this.camera.aspect = aspect;
