@@ -213,6 +213,7 @@ export class FishingTutorial {
       return;
     }
     this.currentStep = this.queue.shift();
+    if (this.onBeforeStep) this.onBeforeStep(this.currentStep);
     this.active = true;
     if (this.onPauseChange) this.onPauseChange(true);
 
@@ -329,7 +330,7 @@ export class FishingTutorial {
       return;
     }
 
-    // 4. FIGHT: let the "掛かった!!" callout play first, then point at each control in turn.
+    // 4. FIGHT: let the "掛かった!!" callout play first, then show the reel-in button.
     if (this._armed('fight_reel_in', phase === 'FIGHT', 1.3)) {
       this._enqueue([
         {
@@ -338,24 +339,44 @@ export class FishingTutorial {
           selector: '#btn-reel-in',
           title: '「↑ 巻上」を長押しして引き上げる',
           html: '押している間、糸を巻き上げます。水深が<b>0m</b>になれば、海面まで引き上げ成功です。'
+        }
+      ]);
+      return;
+    }
+
+    // 4b. Once the player has really started reeling, explain each meter one by one.
+    if (this._armed('fight_tension', phase === 'FIGHT' && this.shownSteps.has('fight_reel_in') && !this.active && snap.winchPower > 0, 0.6)) {
+      this._enqueue([
+        {
+          id: 'fight_tension',
+          tag: 'はじめてガイド',
+          selector: '#gauge-row-tension',
+          needGauges: true,
+          title: 'ライン張力：糸が引っぱられる強さ',
+          html: 'イカが暴れたり、巻き続けたりすると上がります。<b>100%</b>のまま少したつと、糸が切れて失敗です。'
         },
         {
-          id: 'fight_gauges',
+          id: 'fight_temp',
           tag: 'はじめてガイド',
-          selector: '#top-gauges',
-          title: '上の計器を見ながら巻く',
-          html: `<ul>
-            <li><b>ライン張力</b>が赤くなると、糸が切れそうです</li>
-            <li><b>ウインチ温度</b>が高いときは、少し休ませる</li>
-            <li><b>イカスタミナ</b>が減るほど、楽に巻ける</li>
-          </ul>`
+          selector: '#gauge-row-temp',
+          needGauges: true,
+          title: 'ウインチ温度：巻き上げる機械の熱さ',
+          html: '強い力で巻き続けると上がります。熱くなりすぎると機械がこわれて失敗です。高いときは巻上から指をはなして冷まそう。'
+        },
+        {
+          id: 'fight_stamina',
+          tag: 'はじめてガイド',
+          selector: '#gauge-row-stamina',
+          needGauges: true,
+          title: 'イカスタミナ：イカの残りの体力',
+          html: 'イカが暴れるたびに減ります。<b>少なくなるほど</b>イカの引きが弱まり、楽に巻き上げられます。'
         },
         {
           id: 'fight_reel_out',
           tag: 'はじめてガイド',
           selector: '#btn-reel-out',
-          title: '張力が赤いときは「↓ 繰出」で糸を出す',
-          html: 'イカが暴れて張力が上がったら、巻上から指をはなすか、<b>「↓ 繰出」</b>を押して糸をゆるめます。そのまま巻き続けると、糸が切れます。'
+          title: '張力が高いときは「↓ 繰出」で糸を出す',
+          html: '張力が高くなったら、巻上から指をはなすか、点滅する<b>「↓ 繰出」</b>を押して糸をゆるめよう。'
         }
       ]);
       return;

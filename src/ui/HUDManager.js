@@ -788,15 +788,15 @@ export class HUDManager {
             </div>
           </div>
           <div class="top-gauge-grid">
-            <div class="gauge-row">
+            <div class="gauge-row" id="gauge-row-tension">
               <div class="gauge-lbl"><span>ライン張力</span><span id="val-tension">0%</span></div>
               <div class="gauge-track"><div class="gauge-fill" id="bar-tension"></div></div>
             </div>
-            <div class="gauge-row">
+            <div class="gauge-row" id="gauge-row-temp">
               <div class="gauge-lbl"><span>ウインチ温度</span><span id="val-temp">26°C</span></div>
               <div class="gauge-track"><div class="gauge-fill amber" id="bar-temp"></div></div>
             </div>
-            <div class="gauge-row">
+            <div class="gauge-row" id="gauge-row-stamina">
               <div class="gauge-lbl"><span>イカスタミナ</span><span id="val-stamina">100%</span></div>
               <div class="gauge-track"><div class="gauge-fill cyan" id="bar-stamina"></div></div>
             </div>
@@ -1194,6 +1194,12 @@ export class HUDManager {
 
   // Forget every finger / key that is currently held. Used when a guide card opens:
   // the card swallows the finger-up event, so a held "↑ 巻上" would stay pressed.
+  // Make sure the top meters are open (used by the meter guide).
+  openGauges() {
+    this.panelState.gauges = true;
+    this._applyPanelVisibility();
+  }
+
   releaseAllInputs() {
     this.heldButtons.clear();
     this.layer.querySelectorAll('[data-hold].pressed').forEach((b) => b.classList.remove('pressed'));

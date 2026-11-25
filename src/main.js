@@ -17,6 +17,10 @@ import { applyStudioEnvironment } from './models/StudioEnv.js';
 import { ResultFXManager } from './ui/ResultFX.js';
 import { FishingTutorial } from './ui/FishingTutorial.js';
 import { GuideStore } from './ui/MiniGameCoach.js';
+import { installJapaneseLineBreak } from './ui/JaLineBreak.js';
+
+// Break Japanese text only between phrases everywhere in the game.
+installJapaneseLineBreak();
 
 // =============================================================================
 // 1. PROCEDURAL WEB AUDIO ENGINE
@@ -224,6 +228,7 @@ const tutorial = new FishingTutorial(appContainer);
 // When a guide card opens, let go of any held button so the game does not keep
 // reeling (or steering) the moment the card is closed.
 tutorial.onPauseChange = (paused) => { if (paused) hud.releaseAllInputs(); };
+tutorial.onBeforeStep = (step) => { if (step.needGauges) hud.openGauges(); };
 const fishingResultScene = new FishingResultScene();
 
 const flowMenus = new FlowMenuManager(appContainer, {
