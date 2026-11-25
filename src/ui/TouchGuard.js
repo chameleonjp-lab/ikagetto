@@ -69,7 +69,7 @@ export function installTouchGuard() {
   // Pinch zoom (WebKit gesture events) and multi-finger moves.
   ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
   document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-  document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('dblclick', cancel, { passive: false });
 
   // Edge swipe back / forward: cancel touches that start at the left or right edge.
   // Cancelling a touchstart also cancels the click that would follow, so a button
