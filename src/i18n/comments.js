@@ -408,3 +408,456 @@ export const COMMENTS = {
     ],
   },
 };
+
+// 31m-50m colossal catches: 5 size classes x 4 evaluations, in the order
+// POOR, AVERAGE, GOOD, EXCELLENT. Japanese uses the source text in SquidTiersAndComments.js.
+export const COLOSSAL_COMMENTS = {
+  "en": {
+    "TIER7": [
+      "A 30 m+ giant! But the thrashing was too much, and the line is in tatters…",
+      "You conquered a 30 m+ lord! Its raw power shook the whole ship.",
+      "Skillful hands! A 30 m+ giant landed with perfect tension control!",
+      "A legend begins! A flawless, no-waste victory over a 30 m-class giant!"
+    ],
+    "TIER8": [
+      "A 35 m+ monster! The ship was nearly dragged under in a desperate fight…",
+      "You caught a lord of the deep! The weight of this 35 m+ beast still aches in your arms.",
+      "Superb steering! You shut down the fierce jets of a 35 m+ squid!",
+      "Godlike reel work! A 35 m+ colossus, completely under control!"
+    ],
+    "TIER9": [
+      "A 40 m-class colossus! After chaos and a line close to snapping, you barely landed it…",
+      "A 40 m+ colossal squid arrives! Its body covers the entire deck!",
+      "Great technique! You calmly handled its high-pressure ink and wild thrashing!",
+      "A feat for deep-sea history! A 40 m+ colossus caught without a single mistake!"
+    ],
+    "TIER10": [
+      "A 45 m+ titan! You survived a desperate fight beyond the ship's limits…",
+      "A 45 m+ giant hauled aboard! The sea foams around its overwhelming presence!",
+      "A brilliant win at the edge! You fully tamed the crushing pull of a 45 m-class titan!",
+      "Total professionalism! A 45 m+ titan of the deep, perfectly conquered!"
+    ],
+    "TIER10_MAX": [
+      "A 50 m mythic Leviathan! Against all odds, you landed it by a miracle…!",
+      "50 m MAX!! You finally caught the legendary god that rules the deep!!",
+      "Complete mastery of the deep! A 50 m god, shut out with perfect ship and reel work!",
+      "A first for humankind! A flawless, perfect catch of Leviathan, the 50 m god of the deep!!"
+    ]
+  },
+  "es": {
+    "TIER7": [
+      "¡Un gigante de más de 30 m! Pero no pudiste con sus sacudidas y el sedal quedó destrozado…",
+      "¡Dominaste a un señor de más de 30 m! Su fuerza retumbó en todo el barco.",
+      "¡Qué manos! ¡Un gigante de más de 30 m subido con un control de tensión perfecto!",
+      "¡Empieza la leyenda! ¡Victoria total y sin desperdicio ante un gigante de 30 m!"
+    ],
+    "TIER8": [
+      "¡Un monstruo de más de 35 m! Casi arrastra el barco en una lucha a muerte…",
+      "¡Capturaste al señor del abismo! El peso de este gigante de 35 m aún se siente en los brazos.",
+      "¡Gran manejo del timón! ¡Anulaste los feroces chorros de un calamar de más de 35 m!",
+      "¡Un manejo del carrete divino! ¡Un coloso de más de 35 m, totalmente dominado!"
+    ],
+    "TIER9": [
+      "¡Un coloso de 40 m! Tras un caos con el sedal a punto de romperse, lograste subirlo…",
+      "¡Llega un calamar colosal de más de 40 m! ¡Su cuerpo cubre toda la cubierta!",
+      "¡Gran técnica! ¡Manejaste con calma su tinta a presión y sus sacudidas!",
+      "¡Una hazaña para la historia del abismo! ¡Un coloso de más de 40 m sin un solo error!"
+    ],
+    "TIER10": [
+      "¡Un titán de más de 45 m! Sobreviviste a una lucha desesperada más allá del límite del barco…",
+      "¡Un gigante de más de 45 m a bordo! ¡El mar hierve ante su presencia abrumadora!",
+      "¡Gran victoria al límite! ¡Dominaste por completo la fuerza aplastante de un titán de 45 m!",
+      "¡Profesionalidad absoluta! ¡Un titán del abismo de más de 45 m, conquistado a la perfección!"
+    ],
+    "TIER10_MAX": [
+      "¡Un Leviatán mítico de 50 m! Contra todo pronóstico, lo subiste de milagro…!",
+      "¡¡50 m MÁX!! ¡¡Por fin atrapaste al dios legendario que reina en el abismo!!",
+      "¡Dominio total del abismo! ¡Un dios de 50 m anulado con un timón y un carrete perfectos!",
+      "¡Una hazaña sin precedentes! ¡¡Captura perfecta de Leviatán, el dios abisal de 50 m!!"
+    ]
+  },
+  "pt-BR": {
+    "TIER7": [
+      "Um gigante com mais de 30 m! Mas você não deu conta da agitação, e a linha ficou em frangalhos…",
+      "Você dominou um senhor com mais de 30 m! A força dele fez o navio inteiro tremer.",
+      "Mãos habilidosas! Um gigante de mais de 30 m puxado com controle de tensão perfeito!",
+      "Começa a lenda! Vitória total e sem desperdício sobre um gigante de 30 m!"
+    ],
+    "TIER8": [
+      "Um monstro com mais de 35 m! O navio quase foi arrastado numa luta de vida ou morte…",
+      "Você pegou o senhor das profundezas! O peso desse gigante de 35 m ainda pesa nos braços.",
+      "Pilotagem excelente! Você anulou os jatos furiosos de uma lula de mais de 35 m!",
+      "Molinete divino! Um colosso de mais de 35 m, totalmente dominado!"
+    ],
+    "TIER9": [
+      "Um colosso de 40 m! Depois do caos com a linha quase rompendo, você conseguiu puxá-lo…",
+      "Chegou uma lula colossal de mais de 40 m! O corpo dela cobre o convés inteiro!",
+      "Ótima técnica! Você lidou com calma com a tinta sob pressão e a agitação!",
+      "Um feito para a história do abismo! Um colosso de mais de 40 m sem nenhum erro!"
+    ],
+    "TIER10": [
+      "Um titã com mais de 45 m! Você sobreviveu a uma luta desesperada além do limite do navio…",
+      "Um gigante de mais de 45 m a bordo! O mar espuma diante dessa presença esmagadora!",
+      "Vitória brilhante no limite! Você controlou totalmente a força brutal de um titã de 45 m!",
+      "Profissionalismo total! Um titã das profundezas de mais de 45 m, conquistado com perfeição!"
+    ],
+    "TIER10_MAX": [
+      "Um Leviatã mítico de 50 m! Contra todas as chances, você o puxou por milagre…!",
+      "50 m MÁX!! Você finalmente pegou o deus lendário que reina no abismo!!",
+      "Domínio total do abismo! Um deus de 50 m anulado com pilotagem e molinete perfeitos!",
+      "Uma façanha inédita! Captura perfeita de Leviatã, o deus abissal de 50 m!!"
+    ]
+  },
+  "zh-Hans": {
+    "TIER7": [
+      "超过30米的巨体！可惜没能应付它的挣扎，钓线已经伤痕累累…",
+      "征服了超过30米的深海之主！震动船体的怪力太惊人了。",
+      "漂亮的手法！以完美的张力控制钓上了30米以上的巨型乌贼！",
+      "传说由此开始！毫无浪费地拿下30米级巨体，完胜！"
+    ],
+    "TIER8": [
+      "超过35米的怪物！船体差点被拖下去，真是一场生死搏斗…",
+      "捕获了深海之主！35米以上的沉重分量还留在手臂上。",
+      "出色的操舵技术！完全压制了35米以上乌贼的猛烈喷射！",
+      "神级的收线手法！完美制服了35米以上的超巨型个体！"
+    ],
+    "TIER9": [
+      "40米级的超巨型乌贼！在钓线差点断裂的大混乱后，总算钓上来了…",
+      "超过40米的超巨型乌贼降临！它的巨体铺满了整个甲板！",
+      "高超的技术！冷静地应对了40米级的高压墨汁与挣扎！",
+      "载入深海史册的壮举！零失误完美捕获40米以上的超巨型级！"
+    ],
+    "TIER10": [
+      "超过45米的泰坦级！在超出船体极限的绝望搏斗中活了下来…",
+      "钓上了超过45米的极大个体！压倒性的存在感让海面都翻起了泡沫！",
+      "极限状态下的漂亮胜利！完全控制了45米级泰坦的恐怖拉力！",
+      "压倒性的专业表现！完美攻略了45米以上的深海泰坦！"
+    ],
+    "TIER10_MAX": [
+      "50米神话级利维坦！九死一生，奇迹般地钓上来了…！",
+      "达到50米 MAX！！终于捕获了君临深海之巅的传说之神！！",
+      "完美的深海制霸！以完美的操船与收线完封了50米的神级个体！",
+      "人类首次的伟业！完美无缺地捕获了50米深海之神利维坦！！"
+    ]
+  },
+  "fr": {
+    "TIER7": [
+      "Un géant de plus de 30 m ! Mais ses secousses t'ont dépassé, et la ligne est en lambeaux…",
+      "Tu as dompté un seigneur de plus de 30 m ! Sa force a fait trembler tout le navire.",
+      "Quelle maîtrise ! Un géant de plus de 30 m remonté avec une tension parfaite !",
+      "La légende commence ! Une victoire nette et sans gaspillage sur un géant de 30 m !"
+    ],
+    "TIER8": [
+      "Un monstre de plus de 35 m ! Le navire a failli être entraîné dans un combat à mort…",
+      "Tu as pris un seigneur des abysses ! Le poids de ce géant de 35 m pèse encore dans tes bras.",
+      "Superbe pilotage ! Tu as neutralisé les jets furieux d'un calmar de plus de 35 m !",
+      "Un moulinet divin ! Un colosse de plus de 35 m entièrement maîtrisé !"
+    ],
+    "TIER9": [
+      "Un colosse de 40 m ! Après un chaos où la ligne a failli céder, tu l'as remonté de justesse…",
+      "Un calmar colossal de plus de 40 m ! Son corps recouvre tout le pont !",
+      "Belle technique ! Tu as géré avec calme son encre sous pression et ses secousses !",
+      "Un exploit pour l'histoire des abysses ! Un colosse de plus de 40 m pris sans la moindre erreur !"
+    ],
+    "TIER10": [
+      "Un titan de plus de 45 m ! Tu as survécu à un combat désespéré au-delà des limites du navire…",
+      "Un géant de plus de 45 m hissé à bord ! La mer écume devant sa présence écrasante !",
+      "Une victoire brillante à l'extrême ! Tu as dompté la traction écrasante d'un titan de 45 m !",
+      "Un professionnalisme absolu ! Un titan des abysses de plus de 45 m, conquis à la perfection !"
+    ],
+    "TIER10_MAX": [
+      "Un Léviathan mythique de 50 m ! Contre toute attente, tu l'as remonté par miracle… !",
+      "50 m MAX !! Tu as enfin attrapé le dieu légendaire qui règne sur les abysses !!",
+      "Domination totale des abysses ! Un dieu de 50 m neutralisé par un pilotage et un moulinet parfaits !",
+      "Une première pour l'humanité ! Capture parfaite de Léviathan, le dieu des abysses de 50 m !!"
+    ]
+  },
+  "de": {
+    "TIER7": [
+      "Ein Riese über 30 m! Doch das Toben war zu viel, und die Leine ist zerfetzt…",
+      "Einen Herrscher über 30 m bezwungen! Seine Kraft ließ das ganze Schiff beben.",
+      "Geschickte Hände! Ein Riese über 30 m mit perfekter Spannungskontrolle an Bord geholt!",
+      "Eine Legende beginnt! Ein makelloser Sieg über einen 30-m-Riesen!"
+    ],
+    "TIER8": [
+      "Ein Monster über 35 m! Das Schiff wurde in einem Kampf auf Leben und Tod fast hinabgezogen…",
+      "Ein Herrscher der Tiefsee gefangen! Das Gewicht dieses 35-m-Riesen spürst du noch in den Armen.",
+      "Großartiges Steuern! Du hast die wilden Düsenstöße eines Kalmars über 35 m ausgeschaltet!",
+      "Göttliche Rollenarbeit! Ein Koloss über 35 m, vollständig bezwungen!"
+    ],
+    "TIER9": [
+      "Ein 40-m-Koloss! Nach einem Chaos mit fast gerissener Leine gerade noch an Bord geholt…",
+      "Ein kolossaler Kalmar über 40 m! Sein Körper bedeckt das ganze Deck!",
+      "Starke Technik! Du hast seine Hochdrucktinte und sein Toben ruhig gemeistert!",
+      "Ein Meilenstein der Tiefseegeschichte! Ein Koloss über 40 m ganz ohne Fehler gefangen!"
+    ],
+    "TIER10": [
+      "Ein Titan über 45 m! Du hast einen verzweifelten Kampf jenseits der Grenzen des Schiffs überlebt…",
+      "Ein Riese über 45 m an Bord! Das Meer schäumt vor seiner überwältigenden Präsenz!",
+      "Ein glänzender Sieg am Limit! Du hast den gewaltigen Zug eines 45-m-Titanen voll beherrscht!",
+      "Absolute Profiarbeit! Ein Tiefsee-Titan über 45 m, perfekt bezwungen!"
+    ],
+    "TIER10_MAX": [
+      "Ein mythischer 50-m-Leviathan! Gegen alle Chancen wie durch ein Wunder an Bord geholt…!",
+      "50 m MAX!! Endlich den legendären Gott gefangen, der über die Tiefsee herrscht!!",
+      "Vollständige Herrschaft über die Tiefsee! Ein 50-m-Gott, mit perfektem Steuern und Rollenarbeit bezwungen!",
+      "Eine Premiere für die Menschheit! Makelloser Fang von Leviathan, dem 50-m-Gott der Tiefsee!!"
+    ]
+  },
+  "ko": {
+    "TIER7": [
+      "30m가 넘는 거체! 하지만 몸부림을 감당하지 못해 줄이 너덜너덜해졌다…",
+      "30m 넘는 주인급을 제압! 선체를 울리는 괴력이 엄청나다.",
+      "멋진 손놀림! 30m 넘는 거대 오징어를 완벽한 장력 조절로 끌어올렸다!",
+      "전설의 시작이다! 30m급 거체를 군더더기 없이 잡아낸 완벽한 승리!"
+    ],
+    "TIER8": [
+      "35m 넘는 괴물! 선체가 끌려 들어갈 뻔한 아슬아슬한 사투였다…",
+      "심해의 주인을 포획! 35m 넘는 압도적인 무게감이 팔에 남아 있다.",
+      "훌륭한 조타 기술! 35m 넘는 오징어의 맹렬한 분사를 완벽히 막아냈다!",
+      "신의 경지에 이른 릴 솜씨! 35m 넘는 초거대 개체를 완벽하게 제압!"
+    ],
+    "TIER9": [
+      "40m급 초거대 콜로서스! 줄이 끊어지기 직전의 대혼란 끝에 간신히 끌어올렸다…",
+      "40m 넘는 초거대 오징어 강림! 괴물의 거체가 갑판을 뒤덮는다!",
+      "훌륭한 테크닉! 40m급의 강렬한 고압 먹물과 몸부림을 침착하게 받아냈다!",
+      "심해 역사에 남을 쾌거! 40m 넘는 초거대급을 실수 없이 완벽 포획!"
+    ],
+    "TIER10": [
+      "45m 넘는 타이탄급! 선체의 한계를 넘는 절망적인 사투에서 살아남았다…",
+      "45m 넘는 극대 개체를 끌어올렸다! 해면이 거품을 일으킬 만큼 압도적인 존재감!",
+      "극한 상황에서의 멋진 승리! 45m급의 절망적인 당기는 힘을 완전히 제어했다!",
+      "압도적인 프로 솜씨! 45m 넘는 심해 타이탄을 완벽하게 공략!"
+    ],
+    "TIER10_MAX": [
+      "50m 신화급 리바이어던! 구사일생 끝에 기적적으로 끌어올렸다…!",
+      "50m MAX 도달!! 심해의 정점에 군림하는 전설의 신을 마침내 포획!!",
+      "완벽한 심해 제패! 50m 신급 개체를 완벽한 조선과 릴 솜씨로 봉쇄!",
+      "인류 최초의 위업! 50m 심해신 리바이어던을 완전무결하게 퍼펙트 포획!!"
+    ]
+  },
+  "ru": {
+    "TIER7": [
+      "Гигант больше 30 м! Но с его рывками ты не справился, и леска вся изодрана…",
+      "Ты покорил владыку больше 30 м! Его сила сотрясала всё судно.",
+      "Умелые руки! Гигант больше 30 м поднят с идеальным контролем натяжения!",
+      "Начало легенды! Чистая победа без лишних движений над 30-метровым гигантом!"
+    ],
+    "TIER8": [
+      "Чудовище больше 35 м! Судно чуть не утянуло на дно в смертельной схватке…",
+      "Владыка глубин пойман! Вес этого 35-метрового гиганта до сих пор ощущается в руках.",
+      "Отличное управление! Ты подавил яростные рывки кальмара больше 35 м!",
+      "Божественная работа катушкой! Колосс больше 35 м полностью под контролем!"
+    ],
+    "TIER9": [
+      "40-метровый колосс! После хаоса, когда леска едва не лопнула, ты всё же поднял его…",
+      "Явился колоссальный кальмар больше 40 м! Его тело закрывает всю палубу!",
+      "Отличная техника! Ты спокойно справился с его чернилами под давлением и рывками!",
+      "Подвиг для истории глубин! Колосс больше 40 м пойман без единой ошибки!"
+    ],
+    "TIER10": [
+      "Титан больше 45 м! Ты выжил в отчаянной схватке за пределами возможностей судна…",
+      "Исполин больше 45 м на борту! Море пенится от его подавляющего присутствия!",
+      "Блестящая победа на пределе! Ты полностью усмирил чудовищную тягу 45-метрового титана!",
+      "Абсолютный профессионализм! Титан глубин больше 45 м покорён безупречно!"
+    ],
+    "TIER10_MAX": [
+      "Мифический 50-метровый Левиафан! Вопреки всему ты чудом поднял его…!",
+      "50 м МАКС!! Ты наконец поймал легендарного бога, правящего глубинами!!",
+      "Полная власть над глубинами! 50-метровый бог побеждён идеальным управлением и катушкой!",
+      "Впервые в истории человечества! Безупречная поимка Левиафана, 50-метрового бога глубин!!"
+    ]
+  },
+  "it": {
+    "TIER7": [
+      "Un gigante oltre i 30 m! Ma i suoi strattoni erano troppi e la lenza è a brandelli…",
+      "Hai domato un signore oltre i 30 m! La sua forza ha scosso tutta la nave.",
+      "Mani esperte! Un gigante oltre i 30 m issato con un controllo della tensione perfetto!",
+      "Inizia la leggenda! Una vittoria netta e senza sprechi su un gigante da 30 m!"
+    ],
+    "TIER8": [
+      "Un mostro oltre i 35 m! La nave ha rischiato di essere trascinata giù in una lotta all'ultimo sangue…",
+      "Hai catturato il signore degli abissi! Il peso di questo gigante da 35 m si sente ancora nelle braccia.",
+      "Timone magistrale! Hai annullato i getti furiosi di un calamaro oltre i 35 m!",
+      "Mulinello divino! Un colosso oltre i 35 m completamente domato!"
+    ],
+    "TIER9": [
+      "Un colosso da 40 m! Dopo il caos con la lenza quasi spezzata, sei riuscito a issarlo…",
+      "Arriva un calamaro colossale oltre i 40 m! Il suo corpo copre tutto il ponte!",
+      "Gran tecnica! Hai gestito con calma l'inchiostro ad alta pressione e gli strattoni!",
+      "Un'impresa per la storia degli abissi! Un colosso oltre i 40 m preso senza un errore!"
+    ],
+    "TIER10": [
+      "Un titano oltre i 45 m! Sei sopravvissuto a una lotta disperata oltre i limiti della nave…",
+      "Un gigante oltre i 45 m a bordo! Il mare schiuma davanti alla sua presenza schiacciante!",
+      "Una vittoria brillante al limite! Hai dominato del tutto la trazione schiacciante di un titano da 45 m!",
+      "Professionalità assoluta! Un titano degli abissi oltre i 45 m, conquistato alla perfezione!"
+    ],
+    "TIER10_MAX": [
+      "Un Leviatano mitico da 50 m! Contro ogni probabilità, l'hai issato per miracolo…!",
+      "50 m MAX!! Finalmente hai catturato il dio leggendario che regna sugli abissi!!",
+      "Dominio totale degli abissi! Un dio da 50 m annullato con timone e mulinello perfetti!",
+      "Un primato per l'umanità! Cattura perfetta del Leviatano, il dio degli abissi da 50 m!!"
+    ]
+  },
+  "zh-Hant": {
+    "TIER7": [
+      "超過30公尺的巨體！可惜沒能應付牠的掙扎，釣線已經傷痕累累…",
+      "征服了超過30公尺的深海之主！震動船體的怪力太驚人了。",
+      "漂亮的手法！以完美的張力控制釣上了30公尺以上的巨型烏賊！",
+      "傳說由此開始！毫無浪費地拿下30公尺級巨體，完勝！"
+    ],
+    "TIER8": [
+      "超過35公尺的怪物！船體差點被拖下去，真是一場生死搏鬥…",
+      "捕獲了深海之主！35公尺以上的沉重分量還留在手臂上。",
+      "出色的操舵技術！完全壓制了35公尺以上烏賊的猛烈噴射！",
+      "神級的收線手法！完美制服了35公尺以上的超巨型個體！"
+    ],
+    "TIER9": [
+      "40公尺級的超巨型烏賊！在釣線差點斷裂的大混亂後，總算釣上來了…",
+      "超過40公尺的超巨型烏賊降臨！牠的巨體鋪滿了整個甲板！",
+      "高超的技術！冷靜地應對了40公尺級的高壓墨汁與掙扎！",
+      "載入深海史冊的壯舉！零失誤完美捕獲40公尺以上的超巨型級！"
+    ],
+    "TIER10": [
+      "超過45公尺的泰坦級！在超出船體極限的絕望搏鬥中活了下來…",
+      "釣上了超過45公尺的極大個體！壓倒性的存在感讓海面都翻起了泡沫！",
+      "極限狀態下的漂亮勝利！完全控制了45公尺級泰坦的恐怖拉力！",
+      "壓倒性的專業表現！完美攻略了45公尺以上的深海泰坦！"
+    ],
+    "TIER10_MAX": [
+      "50公尺神話級利維坦！九死一生，奇蹟般地釣上來了…！",
+      "達到50公尺 MAX！！終於捕獲了君臨深海之巔的傳說之神！！",
+      "完美的深海制霸！以完美的操船與收線完封了50公尺的神級個體！",
+      "人類首次的偉業！完美無缺地捕獲了50公尺深海之神利維坦！！"
+    ]
+  },
+  "id": {
+    "TIER7": [
+      "Raksasa lebih dari 30 m! Tapi kamu kewalahan menghadapi amukannya, dan talinya compang-camping…",
+      "Kamu menaklukkan penguasa lebih dari 30 m! Kekuatannya mengguncang seluruh kapal.",
+      "Tangan yang terampil! Raksasa lebih dari 30 m ditarik dengan kontrol tegangan sempurna!",
+      "Legenda dimulai! Kemenangan bersih tanpa sia-sia atas raksasa 30 m!"
+    ],
+    "TIER8": [
+      "Monster lebih dari 35 m! Kapal hampir terseret dalam pertarungan hidup-mati…",
+      "Penguasa laut dalam tertangkap! Bobot raksasa 35 m ini masih terasa di lengan.",
+      "Kemudi yang hebat! Kamu meredam semburan dahsyat cumi lebih dari 35 m!",
+      "Teknik gulungan bak dewa! Raksasa lebih dari 35 m dikuasai sepenuhnya!"
+    ],
+    "TIER9": [
+      "Kolosus 40 m! Setelah kekacauan dengan tali yang hampir putus, akhirnya berhasil ditarik…",
+      "Cumi kolosal lebih dari 40 m datang! Tubuhnya menutupi seluruh dek!",
+      "Teknik hebat! Kamu tenang menghadapi tinta bertekanan tinggi dan amukannya!",
+      "Prestasi bersejarah laut dalam! Kolosus lebih dari 40 m tertangkap tanpa satu kesalahan pun!"
+    ],
+    "TIER10": [
+      "Titan lebih dari 45 m! Kamu selamat dari pertarungan putus asa melampaui batas kapal…",
+      "Raksasa lebih dari 45 m naik ke kapal! Laut berbuih di hadapan kehadirannya yang luar biasa!",
+      "Kemenangan gemilang di batas akhir! Kamu menguasai penuh tarikan dahsyat titan 45 m!",
+      "Profesional sejati! Titan laut dalam lebih dari 45 m ditaklukkan dengan sempurna!"
+    ],
+    "TIER10_MAX": [
+      "Leviatan mitos 50 m! Melawan segala kemungkinan, berhasil ditarik secara ajaib…!",
+      "50 m MAKS!! Akhirnya menangkap dewa legendaris penguasa laut dalam!!",
+      "Penguasaan laut dalam yang sempurna! Dewa 50 m dikalahkan dengan kemudi dan gulungan sempurna!",
+      "Prestasi pertama umat manusia! Tangkapan sempurna Leviatan, dewa laut dalam 50 m!!"
+    ]
+  },
+  "tr": {
+    "TIER7": [
+      "30 m'yi aşan bir dev! Ama çırpınışlarına yetişemedin ve misina param parça oldu…",
+      "30 m'yi aşan bir efendiyi alt ettin! Gücü bütün gemiyi sarstı.",
+      "Usta eller! 30 m'yi aşan dev kalamar kusursuz gerilim kontrolüyle çekildi!",
+      "Efsane başlıyor! 30 m'lik bir deve karşı hatasız, tam bir zafer!"
+    ],
+    "TIER8": [
+      "35 m'yi aşan bir canavar! Gemi ölüm kalım savaşında neredeyse dibe çekiliyordu…",
+      "Derinliklerin efendisini yakaladın! 35 m'lik bu devin ağırlığı hâlâ kollarında.",
+      "Harika dümen! 35 m'yi aşan kalamarın şiddetli fışkırmalarını tamamen bastırdın!",
+      "Tanrısal makara işi! 35 m'yi aşan bir dev tamamen kontrol altında!"
+    ],
+    "TIER9": [
+      "40 m'lik bir dev! Misinanın kopmak üzere olduğu kaostan sonra güç bela çektin…",
+      "40 m'yi aşan devasa bir kalamar! Gövdesi bütün güverteyi kaplıyor!",
+      "Harika teknik! Yüksek basınçlı mürekkebini ve çırpınışlarını sakince yönettin!",
+      "Derin deniz tarihine geçecek bir başarı! 40 m'yi aşan dev tek hata yapmadan yakalandı!"
+    ],
+    "TIER10": [
+      "45 m'yi aşan bir titan! Geminin sınırlarını aşan umutsuz bir savaştan sağ çıktın…",
+      "45 m'yi aşan dev güvertede! Ezici varlığı karşısında deniz köpürüyor!",
+      "Sınırda parlak bir zafer! 45 m'lik titanın ezici çekişini tamamen kontrol ettin!",
+      "Mutlak profesyonellik! 45 m'yi aşan derinlik titanı kusursuzca fethedildi!"
+    ],
+    "TIER10_MAX": [
+      "50 m'lik efsanevi Leviatan! Her şeye rağmen bir mucizeyle çektin…!",
+      "50 m MAKS!! Derinliklere hükmeden efsanevi tanrıyı sonunda yakaladın!!",
+      "Derinliklere tam hâkimiyet! 50 m'lik tanrı kusursuz dümen ve makara işiyle alt edildi!",
+      "İnsanlık için bir ilk! 50 m'lik derinlik tanrısı Leviatan'ın kusursuz avı!!"
+    ]
+  },
+  "vi": {
+    "TIER7": [
+      "Thân hình trên 30 m! Nhưng không chống nổi những cú quẫy, dây câu đã tơi tả…",
+      "Đã chinh phục chúa tể trên 30 m! Sức mạnh của nó làm rung chuyển cả con tàu.",
+      "Tay nghề tuyệt vời! Kéo được mực khổng lồ trên 30 m với lực căng hoàn hảo!",
+      "Huyền thoại bắt đầu! Chiến thắng trọn vẹn, không thừa một động tác trước gã khổng lồ 30 m!"
+    ],
+    "TIER8": [
+      "Quái vật trên 35 m! Con tàu suýt bị kéo xuống trong trận chiến sinh tử…",
+      "Bắt được chúa tể biển sâu! Sức nặng của gã khổng lồ 35 m vẫn còn trên đôi tay.",
+      "Kỹ thuật lái tuyệt vời! Đã chặn đứng những cú phun dữ dội của con mực trên 35 m!",
+      "Kỹ thuật thu dây như thần! Khống chế hoàn toàn cá thể khổng lồ trên 35 m!"
+    ],
+    "TIER9": [
+      "Gã khổng lồ cấp 40 m! Sau cơn hỗn loạn khi dây suýt đứt, cuối cùng cũng kéo lên được…",
+      "Mực khổng lồ trên 40 m xuất hiện! Thân hình nó phủ kín cả boong tàu!",
+      "Kỹ thuật xuất sắc! Bình tĩnh xử lý mực áp suất cao và những cú quẫy dữ dội!",
+      "Kỳ tích của lịch sử biển sâu! Bắt hoàn hảo gã khổng lồ trên 40 m mà không một sai sót!"
+    ],
+    "TIER10": [
+      "Cấp titan trên 45 m! Bạn đã sống sót qua trận chiến tuyệt vọng vượt quá giới hạn con tàu…",
+      "Kéo được cá thể cực đại trên 45 m! Mặt biển sủi bọt trước sự hiện diện áp đảo của nó!",
+      "Chiến thắng ngoạn mục nơi giới hạn! Đã khống chế hoàn toàn sức kéo khủng khiếp của titan 45 m!",
+      "Chuyên nghiệp tuyệt đối! Chinh phục hoàn hảo titan biển sâu trên 45 m!"
+    ],
+    "TIER10_MAX": [
+      "Leviathan huyền thoại 50 m! Thập tử nhất sinh, kéo lên được như một phép màu…!",
+      "Đạt 50 m MAX!! Cuối cùng đã bắt được vị thần huyền thoại ngự trị biển sâu!!",
+      "Chinh phục biển sâu hoàn hảo! Hạ gục vị thần 50 m bằng tay lái và kỹ thuật thu dây hoàn hảo!",
+      "Kỳ tích đầu tiên của nhân loại! Bắt hoàn hảo Leviathan, thần biển sâu 50 m!!"
+    ]
+  },
+  "th": {
+    "TIER7": [
+      "ร่างยักษ์เกิน 30 ม.! แต่รับมือการดิ้นไม่ไหว สายเบ็ดเลยขาดรุ่งริ่ง…",
+      "พิชิตเจ้าแห่งทะเลที่ยาวเกิน 30 ม. ได้! พลังมหาศาลสะเทือนไปทั้งลำเรือ",
+      "ฝีมือยอดเยี่ยม! ดึงหมึกยักษ์เกิน 30 ม. ขึ้นมาด้วยการคุมแรงตึงที่สมบูรณ์แบบ!",
+      "ตำนานเริ่มต้นแล้ว! ชัยชนะเด็ดขาดไร้ที่ติเหนือยักษ์ระดับ 30 ม.!"
+    ],
+    "TIER8": [
+      "สัตว์ประหลาดเกิน 35 ม.! เรือเกือบถูกลากลงไปในศึกชี้เป็นชี้ตาย…",
+      "จับเจ้าแห่งทะเลลึกได้! น้ำหนักของยักษ์ 35 ม. ยังติดอยู่ที่แขน",
+      "ฝีมือบังคับเรือยอดเยี่ยม! สกัดแรงพ่นน้ำอันดุเดือดของหมึกเกิน 35 ม. ได้หมด!",
+      "ฝีมือม้วนสายระดับเทพ! ปราบหมึกยักษ์มหึมาเกิน 35 ม. ได้อย่างสมบูรณ์!"
+    ],
+    "TIER9": [
+      "ยักษ์มหึมาระดับ 40 ม.! หลังความโกลาหลที่สายเกือบขาด ก็ดึงขึ้นมาได้หวุดหวิด…",
+      "หมึกยักษ์มหึมาเกิน 40 ม. ปรากฏตัว! ร่างของมันปกคลุมทั้งดาดฟ้าเรือ!",
+      "เทคนิคยอดเยี่ยม! รับมือหมึกแรงดันสูงและการดิ้นอย่างใจเย็น!",
+      "ผลงานที่จะถูกจารึกในประวัติศาสตร์ทะเลลึก! จับยักษ์มหึมาเกิน 40 ม. ได้โดยไม่พลาดเลย!"
+    ],
+    "TIER10": [
+      "ระดับไททันเกิน 45 ม.! รอดจากศึกสิ้นหวังที่เกินขีดจำกัดของเรือ…",
+      "ดึงตัวมหึมาเกิน 45 ม. ขึ้นเรือได้! ผิวน้ำเดือดเป็นฟองต่อหน้าตัวตนอันยิ่งใหญ่!",
+      "ชัยชนะงดงามในสภาวะสุดขีด! คุมแรงดึงมหาศาลของไททัน 45 ม. ได้อย่างสมบูรณ์!",
+      "มืออาชีพเหนือชั้น! พิชิตไททันแห่งทะเลลึกเกิน 45 ม. ได้อย่างไร้ที่ติ!"
+    ],
+    "TIER10_MAX": [
+      "เลวีอาธานระดับตำนาน 50 ม.! รอดตายหวุดหวิดและดึงขึ้นมาได้อย่างปาฏิหาริย์…!",
+      "ถึง 50 ม. MAX!! จับเทพในตำนานผู้ครองยอดแห่งทะเลลึกได้ในที่สุด!!",
+      "พิชิตทะเลลึกอย่างสมบูรณ์! ปราบเทพ 50 ม. ด้วยการบังคับเรือและม้วนสายที่สมบูรณ์แบบ!",
+      "ผลงานครั้งแรกของมนุษยชาติ! จับเลวีอาธาน เทพแห่งทะเลลึก 50 ม. ได้อย่างไร้ที่ติ!!"
+    ]
+  }
+};

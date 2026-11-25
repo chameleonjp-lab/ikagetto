@@ -1,6 +1,6 @@
 import { getLanguageLocale, isSupportedLanguage, resolveLanguage } from './languages.js';
 import { GAME_MESSAGES } from './game-messages.js';
-import { COMMENTS } from './comments.js';
+import { COLOSSAL_COMMENTS, COMMENTS } from './comments.js';
 
 const STORAGE_KEY = 'ikagetto_language_v1';
 const listeners = new Set();
@@ -81,4 +81,10 @@ export function localizeHtml(source) {
 export function translateComment(mode, index, japaneseOriginal) {
   const band = COMMENT_BAND_ENDS.findIndex((end) => index <= end);
   return COMMENTS[currentLanguage]?.[mode]?.[band] ?? japaneseOriginal;
+}
+
+// 31m-50m comments: Japanese keeps the source text, other languages use the same
+// 5 size classes x 4 evaluations (POOR, AVERAGE, GOOD, EXCELLENT).
+export function translateColossalComment(classKey, evaluationIndex, japaneseOriginal) {
+  return COLOSSAL_COMMENTS[currentLanguage]?.[classKey]?.[evaluationIndex] ?? japaneseOriginal;
 }

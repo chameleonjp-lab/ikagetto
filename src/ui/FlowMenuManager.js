@@ -95,6 +95,11 @@ export class FlowMenuManager {
       }
       .result-ranking span:empty { display: none; }
       [data-result-share]:disabled { opacity: 0.55; cursor: wait; }
+      .fr-class {
+        margin-top: 4px; font-size: 12px; font-weight: 900; letter-spacing: 0.04em;
+        color: #ffe7a3; text-shadow: 0 0 8px rgba(255, 190, 60, 0.7);
+      }
+      .fr-class[hidden] { display: none; }
       .fr-comment {
         margin-top: 6px; font-size: 11px; line-height: 1.38; color: #e2f2ff;
         border-top: 1px solid rgba(92, 225, 255, 0.22); padding-top: 5px;
@@ -157,6 +162,7 @@ export class FlowMenuManager {
           <div class="result-ranking" aria-live="polite">
             <span data-result-position></span><span data-result-play-count></span>
           </div>
+          <div class="fr-class" id="fr-class" hidden></div>
           <div class="fr-comment" id="fr-comment">--</div>
         </div>
       </div>
@@ -197,13 +203,18 @@ export class FlowMenuManager {
     this.elResultUI.querySelector('#fr-wt').textContent = `${formatNumber(result.weightKg)} kg`;
     this.elResultUI.querySelector('#fr-time').textContent = t('{0} 秒', formatNumber(Math.round(result.elapsedTime)));
     this.elResultUI.querySelector('#fr-comment').textContent = result.comment;
+    // 31m-50m: show the size class (ヌシ級 / 超巨大級 / 伝説の深海神 ...).
+    const classEl = this.elResultUI.querySelector('#fr-class');
+    classEl.hidden = !result.colossalClass;
+    classEl.textContent = result.colossalClass ? `◆ ${t(result.colossalClass)} ◆` : '';
     this.elResultUI.classList.remove('hidden');
     this.fishingRanking.show(result, statistics, playerName);
 
     ResultFXManager.applyCardStyle(cardEl, rankEl, ribbonEl, result.rank);
     ResultFXManager.animateScore(scoreEl, result.score, 750);
-    this.audio?.playResultJingle(result.rank);
-    this.resultFX?.start(result.rank);
+    if (result.lengthMeters >= 31) this.audio?.playColossalFanfare(result.lengthMeters, result.rank);
+    else this.audio?.playResultJingle(result.rank);
+    this.resultFX?.start(result.rank, { lengthMeters: result.lengthMeters });
   }
 
   hideFishingResult() {

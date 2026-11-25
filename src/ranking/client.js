@@ -7,6 +7,62 @@ const queue = new Map();
 const sending = new Map();
 const runResults = new WeakMap();
 
+// Test mode: ?mockRanking=1 keeps every ranking call in memory (nothing is sent or
+// queued), so local checks never write to the real leaderboard.
+const mockRanking = (() => {
+  try { return new URLSearchParams(globalThis.location?.search).get('mockRanking') === '1'; } catch { return false; }
+})();
+
+export function isMockRanking() {
+  return mockRanking;
+}
+
+const mockState = { plays: { fishing: 0, butcher: 0, cooking: 0 }, runs: new Map(), best: new Map() };
+
+function mockRpc(route, params) {
+  if (route === 'ikagetto_start_v1') {
+    if (!mockState.runs.has(params.p_run_id)) {
+      mockState.runs.set(params.p_run_id, { mode: params.p_mode, name: params.p_display_name, score: null });
+      mockState.plays[params.p_mode] += 1;
+    }
+    return 'accepted';
+  }
+  if (route === 'ikagetto_finish_v1' || route === 'ikagetto_fishing_finish_v2') {
+    const run = mockState.runs.get(params.p_run_id);
+    if (!run) throw Object.assign(new Error('ikagetto_unknown_run'), { permanent: true });
+    const max = run.mode === 'fishing' ? 80000 : 50000;
+    if (!Number.isInteger(params.p_score) || params.p_score < 0 || params.p_score > max) {
+      throw Object.assign(new Error('ikagetto_invalid_finish'), { permanent: true });
+    }
+    run.score = params.p_score;
+    const key = run.mode + ':' + (run.name || '');
+    if (run.name) {
+      const prev = mockState.best.get(key);
+      if (!prev || prev.score < run.score) {
+        mockState.best.set(key, {
+          mode: run.mode, display_name: run.name, score: run.score,
+          length_meters: params.p_length_meters ?? null, weight_kg: params.p_weight_kg ?? null, elapsed_ms: params.p_elapsed_ms ?? null,
+        });
+      }
+    }
+    const higher = [...mockState.best.values()].filter(b => b.mode === run.mode && b.score > run.score).length;
+    return [{ rank: run.name ? higher + 1 : null, play_count: mockState.plays[run.mode] }];
+  }
+  if (route === 'ikagetto_stats_v1') {
+    const { fishing, butcher, cooking } = mockState.plays;
+    const names = new Set([...mockState.best.values()].map(b => b.display_name));
+    return [{ total_play_count: fishing, player_count: names.size, fishing, butcher, cooking }];
+  }
+  const mode = params.p_mode || 'fishing';
+  const rows = [...mockState.best.values()].filter(b => b.mode === mode).sort((a, b) => b.score - a.score)
+    .map((b, i) => ({ rank: i + 1, ...b }));
+  const offset = params.p_offset || 0;
+  const limit = params.p_limit || 30;
+  const page = rows.slice(offset, offset + limit);
+  if (route === 'ikagetto_board_page_v3') return page.map(r => ({ ...r, has_more: rows.length > offset + limit }));
+  return page;
+}
+
 function readStorage(key) {
   try { return localStorage.getItem(key); } catch { return null; }
 }
@@ -39,6 +95,7 @@ export function setPlayerName(value) {
 }
 
 async function rpc(route, params = {}) {
+  if (mockRanking) return mockRpc(route, params);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
@@ -121,7 +178,7 @@ function boardRecords(mode, rows) {
 function remember(job) {
   const key = queuePrefix + job.operation + ':' + job.run.id;
   queue.set(key, job);
-  writeStorage(key, JSON.stringify(job));
+  if (!mockRanking) writeStorage(key, JSON.stringify(job));
   return key;
 }
 
@@ -131,6 +188,7 @@ function remove(key) {
 }
 
 function restoreQueue() {
+  if (mockRanking) return;
   try {
     for (let index = 0; index < localStorage.length; index++) {
       const key = localStorage.key(index);
@@ -141,7 +199,7 @@ function restoreQueue() {
           modes.has(job.run?.mode) && validName(job.run.name) &&
           /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/u.test(job.run.id) &&
           key === queuePrefix + job.operation + ':' + job.run.id &&
-          (job.operation === 'start' || (validScore(job.score) &&
+          (job.operation === 'start' || (validScore(job.score, job.run.mode) &&
             (job.metrics == null || (job.run.mode === 'fishing' && validMetrics(job.metrics)))))) {
           queue.set(key, job);
         }
@@ -150,13 +208,17 @@ function restoreQueue() {
   } catch { /* Storage may be disabled by the browser. */ }
 }
 
-function validScore(score) {
-  return Number.isInteger(score) && score >= 0 && score <= 50000;
+// Fishing goes up to 80,000 (31m-50m colossal catches); butchering and cooking stay at 50,000.
+// These limits match supabase/ikagetto-colossal-metrics-v4.sql.
+export const MAX_SCORE = Object.freeze({ fishing: 80000, butcher: 50000, cooking: 50000 });
+
+function validScore(score, mode = 'fishing') {
+  return Number.isInteger(score) && score >= 0 && score <= (MAX_SCORE[mode] ?? 50000);
 }
 
 function validMetrics({ length_meters, weight_kg, elapsed_ms }) {
-  return Number.isInteger(length_meters) && length_meters >= 1 && length_meters <= 30 &&
-    Number.isInteger(weight_kg) && weight_kg >= 1 && weight_kg <= 10000 &&
+  return Number.isInteger(length_meters) && length_meters >= 1 && length_meters <= 50 &&
+    Number.isInteger(weight_kg) && weight_kg >= 1 && weight_kg <= 45000 &&
     Number.isInteger(elapsed_ms) && elapsed_ms >= 0 && elapsed_ms <= 2147483647;
 }
 
@@ -235,7 +297,7 @@ export function startRankingRun(mode, name = getPlayerName()) {
 }
 
 export function finishRankingRun(run, score, catchResult) {
-  if (!run || !validScore(score)) return Promise.resolve(null);
+  if (!run || !validScore(score, run.mode)) return Promise.resolve(null);
   const metrics = run.mode === 'fishing' ? {
     length_meters: catchResult?.lengthMeters,
     weight_kg: catchResult?.weightKg,

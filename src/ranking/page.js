@@ -1,7 +1,7 @@
 import { getLanguage, setLanguage, onLanguageChange } from '../i18n/runtime.js';
 import { SUPPORTED_LANGUAGES } from '../i18n/languages.js';
 import { rankText, rankNumber } from './messages.js?v=3';
-import { getRankingBoardPage, getRankingStats } from './client.js?v=3';
+import { getRankingBoardPage, getRankingStats } from './client.js?v=4';
 
 const $ = id => document.getElementById(id);
 const tabs = Array.from(document.querySelectorAll('[data-mode]'));

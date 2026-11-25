@@ -7,6 +7,9 @@ import { FishingRig } from './models/FishingRig.js';
 import { GameEngine } from './systems/GameEngine.js';
 import { HUDManager } from './ui/HUDManager.js';
 import { applySquidTierVisuals } from './models/GiantSquidTiers.js';
+import { GiantSquidColossalModel } from './models/GiantSquidColossalModel.js';
+import { ColossalSquidActor } from './models/GiantSquidColossalMotion.js';
+import { isColossalLength, readColossalPity, writeColossalPity, calculateColossalProbability } from './data/SquidTiersAndComments.js';
 import { FishingResultScene } from './scenes/FishingResultScene.js';
 import { ButcherGame } from './games/ButcherGame.js';
 import { AjilloCookingGame } from './games/AjilloCookingGame.js';
@@ -20,7 +23,7 @@ import { GuideStore } from './ui/MiniGameCoach.js';
 import { installJapaneseLineBreak } from './ui/JaLineBreak.js';
 import { installDeviceProfile } from './ui/DeviceProfile.js';
 import { installTouchGuard, setBackGuard } from './ui/TouchGuard.js';
-import { finishRankingRun, getPlayerName, startRankingRun } from './ranking/client.js';
+import { finishRankingRun, getPlayerName, isMockRanking, startRankingRun } from './ranking/client.js';
 
 // Tag <html> with the device type (phone / tablet / PC / dual screen) and input (touch / mouse).
 installDeviceProfile();
@@ -217,8 +220,51 @@ const oceanEnv = new OceanEnv(scene);
 const vessel = new ResearchVessel();
 scene.add(vessel.getObject3D());
 
-const squid = new GiantSquid();
-scene.add(squid.getObject3D());
+const standardSquid = new GiantSquid();
+scene.add(standardSquid.getObject3D());
+// The squid in the water: the 1-30m GiantSquid, or a 31-50m ColossalSquidActor.
+let squid = standardSquid;
+let colossalActor = null;
+// Camera distance multiplier for the deck shots (1 for 1-30m).
+let squidCamScale = 1;
+
+// In the fishing scene a 30m squid is about 19 units long (Tier 6 scale).
+// 31-50m keep growing from there instead of using true meters, so the ship,
+// the rig and the ROV camera still frame the fight.
+const TIER6_VISUAL_LENGTH = 9.93 * 1.92;
+function colossalVisualLength(lengthMeters) {
+  return TIER6_VISUAL_LENGTH * Math.pow(lengthMeters / 30, 0.55);
+}
+
+function useSquidFor(specimen) {
+  if (colossalActor) {
+    colossalActor.dispose();
+    colossalActor = null;
+  }
+  if (specimen && isColossalLength(specimen.lengthMeters)) {
+    const model = new GiantSquidColossalModel(specimen.lengthMeters);
+    const visualLength = colossalVisualLength(specimen.lengthMeters);
+    const extent = model.measureBodyAxisExtent();
+    colossalActor = new ColossalSquidActor(model, { visualScale: visualLength / Math.max(1, extent.length) });
+    standardSquid.getObject3D().removeFromParent();
+    scene.add(colossalActor.getObject3D());
+    squid = colossalActor;
+    squidCamScale = (visualLength / TIER6_VISUAL_LENGTH) * 1.25;
+  } else {
+    if (!standardSquid.getObject3D().parent) scene.add(standardSquid.getObject3D());
+    applySquidTierVisuals(standardSquid, specimen);
+    squid = standardSquid;
+    squidCamScale = 1;
+  }
+}
+
+// Local test hook: with ?mockRanking=1, ?colossal=31..50 forces that size so the
+// 31-50m flow can be checked without touching the real leaderboard.
+function debugForcedLength() {
+  if (!isMockRanking()) return null;
+  const value = Number(new URLSearchParams(globalThis.location?.search).get('colossal'));
+  return Number.isInteger(value) && value >= 1 && value <= 50 ? value : null;
+}
 
 const fishingRig = new FishingRig(scene);
 const engine = new GameEngine();
@@ -254,8 +300,8 @@ function startFishing() {
   tutorial.beginPlay(GuideStore.beginPlay());
   hud.setGuideEnabled(GuideStore.nextEnabled());
   hud.hideAll();
-  const snapshot = engine.startGame();
-  applySquidTierVisuals(squid, snapshot.specimen);
+  const snapshot = engine.startGame({ forceLength: debugForcedLength() });
+  useSquidFor(snapshot.specimen);
 }
 
 function recordFishingResult(result) {
@@ -293,7 +339,7 @@ const flowMenus = new FlowMenuManager(appContainer, {
     flowMenus.hideFishingResult();
     flowMenus.hideMenu();
     engine.reset();
-    applySquidTierVisuals(squid, engine.specimen);
+    useSquidFor(engine.specimen);
   }
 }, miniAudio, resultFX);
 
@@ -311,7 +357,7 @@ const ajilloGame = new AjilloCookingGame(appContainer, miniAudio, {
   onReturnHome: () => {
     activeAppMode = 'FISHING';
     engine.reset();
-    applySquidTierVisuals(squid, engine.specimen);
+    useSquidFor(engine.specimen);
   }
 }, resultFX);
 
@@ -353,6 +399,21 @@ installAudioUnlock();
 window.addEventListener('pointerdown', () => audio.initOnGesture(), { capture: true });
 onAudioContextCreated((ctx) => { if (audio.started) audio._build(ctx); });
 hud.setGuideEnabled(GuideStore.nextEnabled());
+// Tapping the 31m-50m warning fades the picture and the alarm out together.
+hud.colossalAlert.onSkip = () => miniAudio.stopColossalAlert();
+
+// Test-only hook (only with ?mockRanking=1, so it never exists for real players):
+//   ikagettoDebug.getPity() / ikagettoDebug.setPity(1..9) / ikagettoDebug.engine
+if (isMockRanking()) {
+  window.ikagettoDebug = {
+    engine,
+    getPity: () => {
+      const pity = readColossalPity();
+      return { ...pity, nextProbability: calculateColossalProbability(pity.attemptCount) };
+    },
+    setPity: (attemptCount) => writeColossalPity(attemptCount)
+  };
+}
 
 // =============================================================================
 // 4. PRE-ALLOCATED SCRATCH VECTORS & MAIN LOOP
@@ -431,6 +492,17 @@ function animate(now) {
   if (snap.phase === 'CAPTURE_SCENE' && prevPhase !== 'CAPTURE_SCENE') {
     audio.playCaptureFanfare();
     inspectCamInitialized = false;
+  }
+  // 31m-50m: size-based full-screen warning when the rig reaches 600m (ROV view).
+  if (snap.events.colossalAlert) {
+    hud.showColossalAlert(snap.specimen.lengthMeters, snap.events.colossalAlert);
+    miniAudio.playColossalAlert(snap.events.colossalAlert);
+  }
+  // 31m-50m boss actions (visual and sound only).
+  if (snap.events.colossalAction && colossalActor) {
+    colossalActor.triggerBossAction(snap.events.colossalAction);
+    hud.showColossalAction(snap.events.colossalAction);
+    miniAudio.playColossalAction(snap.events.colossalAction);
   }
   prevPhase = snap.phase;
 
@@ -611,9 +683,9 @@ function animate(now) {
     // Cinematic orbiting hero shot around the A-Frame hoisting the Giant Squid!
     const a = snap.ship.heading + 0.6 + snap.captureTimer * 0.38;
     _captureCamGoal.set(
-      _squidWorldPos.x + Math.sin(a) * 9.5,
-      _squidWorldPos.y + 2.2,
-      _squidWorldPos.z + Math.cos(a) * 9.5
+      _squidWorldPos.x + Math.sin(a) * 9.5 * squidCamScale * (colossalActor ? 1.35 : 1),
+      _squidWorldPos.y + 2.2 * squidCamScale,
+      _squidWorldPos.z + Math.cos(a) * 9.5 * squidCamScale * (colossalActor ? 1.35 : 1)
     );
     surfaceCamera.position.lerp(_captureCamGoal, Math.min(1, dt * 3.0));
     orbitControls.target.lerp(_squidWorldPos, Math.min(1, dt * 4.0));
@@ -623,9 +695,13 @@ function animate(now) {
     if (!inspectCamInitialized) {
       inspectCamInitialized = true;
       orbitControls.target.copy(_squidWorldPos);
-      surfaceCamera.position.set(_squidWorldPos.x + 6.5, _squidWorldPos.y + 1.8, _squidWorldPos.z + 6.5);
+      surfaceCamera.position.set(
+        _squidWorldPos.x + 6.5 * squidCamScale,
+        _squidWorldPos.y + 1.8 * squidCamScale,
+        _squidWorldPos.z + 6.5 * squidCamScale
+      );
       orbitControls.minDistance = 2.2;
-      orbitControls.maxDistance = 24.0;
+      orbitControls.maxDistance = 24.0 * squidCamScale;
     }
     orbitControls.target.lerp(_squidWorldPos, Math.min(1, dt * 5.0));
     orbitControls.update();
@@ -638,10 +714,12 @@ function animate(now) {
   }
 
   // Dynamic ROV camera: close-up during LURE_HOOK biting, then smoothly PULLS BACK during FIGHT/LANDING
-  // scaled to the specimen's actual length (1m-30m) so the player feels the colossal scale of the Giant Squid!
+  // scaled to the specimen's actual length (1m-50m) so the player feels the colossal scale of the Giant Squid!
   const specLen = snap.specimen ? snap.specimen.lengthMeters : 8;
   const isPullingBack = (snap.phase === 'FIGHT' || snap.phase === 'LANDING');
-  const sizeZoom = isPullingBack ? (1.42 + (specLen / 30) * 0.95) : 1.0;
+  // 31m-50m: pull the camera further back in proportion to the bigger body.
+  const baseZoom = isPullingBack ? (1.42 + (Math.min(30, specLen) / 30) * 0.95) : 1.0;
+  const sizeZoom = colossalActor ? baseZoom * squidCamScale * (isPullingBack ? 1.0 : 1.7) : baseZoom;
   const rovOrbit = snap.phase === 'FIGHT' ? Math.sin(totalTime * 0.32) * 3.0 * sizeZoom : Math.sin(totalTime * 0.18) * 1.4;
   _rovCamPos.set(
     _rigEndPos.x + (2.9 * sizeZoom) + rovOrbit,
