@@ -122,46 +122,44 @@ export class HUDManager {
         -webkit-backdrop-filter: blur(10px);
         box-shadow: 0 24px 64px rgba(0, 0, 0, 0.72);
       }
-      .home-kicker {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.2em;
-        color: var(--cyan);
-        text-transform: uppercase;
-      }
       .home-title {
-        font-size: clamp(24px, 6.5vw, 32px);
+        font-size: clamp(40px, 13vw, 56px);
         font-weight: 900;
         color: #f4faff;
-        margin: 8px 0 4px;
-        letter-spacing: 0.04em;
-      }
-      .home-latin {
-        font-size: 13px;
-        font-style: italic;
-        color: #8bc2e6;
-        margin-bottom: 16px;
+        margin: 2px 0 18px;
+        letter-spacing: 0.08em;
+        line-height: 1.1;
+        text-shadow: 0 0 22px rgba(92, 225, 255, 0.45);
       }
       .home-steps {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 8px;
-        margin-bottom: 16px;
-        text-align: left;
+        margin-bottom: 20px;
       }
       .home-step {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
         background: rgba(12, 30, 56, 0.75);
-        border: 1px solid rgba(92, 225, 255, 0.2);
-        border-radius: 9px;
-        padding: 8px;
-        font-size: 11px;
-        line-height: 1.4;
+        border: 1px solid rgba(92, 225, 255, 0.25);
+        border-radius: 12px;
+        padding: 12px 4px 10px;
       }
-      .home-step strong {
-        display: block;
-        color: var(--amber);
-        font-size: 11.5px;
-        margin-bottom: 2px;
+      .home-step-num {
+        width: 24px; height: 24px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--amber); color: #13233a;
+        font-size: 14px; font-weight: 900; line-height: 1;
+      }
+      .home-step-icon { width: 52px; height: 52px; color: #7ee8ff; }
+      .home-step-label {
+        font-size: clamp(12.5px, 3.6vw, 14.5px);
+        font-weight: 800;
+        color: #f0f8ff;
+        line-height: 1.3;
       }
       .home-equip-note {
         font-size: 11px;
@@ -748,16 +746,41 @@ export class HUDManager {
       <!-- HOME SCREEN -->
       <div id="home-screen">
         <div class="home-card">
-          <div class="home-kicker">DEEP SEA FISHING SIMULATOR</div>
           <div class="home-title">イカゲット</div>
-          <div class="home-latin">Architeuthis dux — Depth 800m</div>
           <div class="home-steps">
-            <div class="home-step"><strong>① 索敵・投下</strong>360°スティックで反応地点へ近づき仕掛けを投下</div>
-            <div class="home-step"><strong>② 深海フッキング</strong>抱え込みの瞬間に光るフッキングボタンを押す</div>
-            <div class="home-step"><strong>③ ファイト＆揚収</strong>張力・温度を管理し波頂点でクレーン揚収</div>
+            <div class="home-step">
+              <div class="home-step-num">1</div>
+              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+                <circle cx="24" cy="24" r="4" fill="currentColor" stroke="none"/>
+                <path d="M15 33 A12.7 12.7 0 0 1 15 15"/><path d="M33 15 A12.7 12.7 0 0 1 33 33"/>
+                <path d="M9 39 A21 21 0 0 1 9 9" opacity="0.55"/><path d="M39 9 A21 21 0 0 1 39 39" opacity="0.55"/>
+              </svg>
+              <div class="home-step-label">イカを探す</div>
+            </div>
+            <div class="home-step">
+              <div class="home-step-num">2</div>
+              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M24 4 C31 10 32 19 30 27 H18 C16 19 17 10 24 4 Z"/>
+                <circle cx="21" cy="23" r="1.6" fill="currentColor" stroke="none"/><circle cx="27" cy="23" r="1.6" fill="currentColor" stroke="none"/>
+                <path d="M19 27 C17 34 13 37 11 43"/><path d="M22 27 C21 35 20 39 19 44"/>
+                <path d="M26 27 C27 35 28 39 29 44"/><path d="M29 27 C31 34 35 37 37 43"/>
+                <path d="M40 8 L40 15" stroke="#ffd454"/><circle cx="40" cy="20" r="1.5" fill="#ffd454" stroke="none"/>
+              </svg>
+              <div class="home-step-label">イカを見つける</div>
+            </div>
+            <div class="home-step">
+              <div class="home-step-num">3</div>
+              <svg class="home-step-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 42 L32 6"/>
+                <path d="M32 6 C36 14 37 22 36 30"/>
+                <path d="M36 30 V36 A4 4 0 0 1 28 36"/><path d="M28 36 L30 34"/>
+                <path d="M3 42 H13" opacity="0.55"/>
+              </svg>
+              <div class="home-step-label">イカを釣る</div>
+            </div>
           </div>
 
-          <button type="button" id="btn-home-play" class="home-play-btn">出港する（PLAY）</button>
+          <button type="button" id="btn-home-play" class="home-play-btn">出港する</button>
           <button type="button" id="btn-home-guide" class="home-guide-link hidden">はじめてガイドを、もう一度見る</button>
         </div>
       </div>
@@ -1352,6 +1375,7 @@ export class HUDManager {
     const isActivePlay = !isHome && !isCapture && !isInspect && !isEnd;
 
     this.elHomeScreen.classList.toggle('hidden', !isHome);
+    if (isHome) this.elPipLabel.classList.add('hidden');
     // Show only what the current step needs, so the 3D scene stays as large as possible.
     //  SEARCH    : sonar + stick + winch buttons
     //  LURE_HOOK : hook button only (stick / winch do nothing useful while waiting)
