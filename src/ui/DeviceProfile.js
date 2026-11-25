@@ -6,9 +6,21 @@
 //   os-ios                                       iPhone / iPad (Safari quirks)
 //   dual-h / dual-v                              two screens side by side / stacked
 //
-// The form is judged from the main pointer (finger or mouse), the screen size,
-// and whether the page spans two screens (e.g. Surface Duo). The user agent is
-// only used to recognise iPhone / iPad.
+// The layout is chosen from the space the page really has (CSS viewport), not
+// from the device name, following WebKit's advice for iPhone Duo: Safari gives
+// pages 382-951 CSS px of width there, and the same iPhone can be a "phone"
+// (cover screen, split view) or a "tablet" (inner screen) from one moment to the
+// next. Fold / unfold changes the viewport, so the classes are re-applied on resize.
+//
+//   short side of the viewport < 600 px, touch  -> phone layout
+//   short side >= 600 px, touch                 -> tablet layout (iPad, iPhone Duo open)
+//   mouse with hover                            -> PC layout
+//   Viewport Segments API reports 2 segments    -> dual layout (keep dialogs off the fold)
+//
+// The fold is invisible to pages unless the browser exposes the Viewport Segments
+// API (on iPhone Duo it is a developer preview behind a Safari feature flag), so by
+// default an open iPhone Duo is treated as one large screen.
+// The user agent is only used to recognise iOS for Safari-specific tweaks.
 //
 // adaptText() rewrites finger words for mouse users ("タップ" -> "クリック").
 
@@ -33,19 +45,18 @@ function detect() {
   const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const coarse = mq('(pointer: coarse)');
   const fineHover = mq('(pointer: fine)') && mq('(hover: hover)');
-  const shortSide = Math.min(window.screen.width || window.innerWidth, window.screen.height || window.innerHeight);
+  const shortSide = Math.min(window.innerWidth, window.innerHeight);
   const segs = viewportSegments();
   const dualH = mq('(horizontal-viewport-segments: 2)') || (segs && segs[1].left > segs[0].left);
   const dualV = mq('(vertical-viewport-segments: 2)') || (segs && segs[1].top > segs[0].top);
 
   let device;
   if (dualH || dualV) device = 'dual';
-  else if (isIPhone || (coarse && shortSide < 600)) device = 'phone';
-  else if (isIPad || (coarse && !fineHover)) device = 'tablet';
+  else if (!fineHover || coarse || isIPhone || isIPad) device = shortSide < 600 ? 'phone' : 'tablet';
   else device = 'pc';
 
   const input = fineHover && !coarse && !isIPhone && !isIPad ? 'mouse' : 'touch';
-  return { device, input, ios: isIPhone || isIPad, dualH: !!dualH, dualV: !!dualV && !dualH, segs };
+  return { device, input, shortSide, ios: isIPhone || isIPad, dualH: !!dualH, dualV: !!dualV && !dualH, segs };
 }
 
 let profile = detect();
@@ -54,6 +65,8 @@ function apply() {
   const root = document.documentElement;
   const keep = [...root.classList].filter((c) => !/^(dev-|input-|os-|dual-)/.test(c));
   const add = [`dev-${profile.device}`, `input-${profile.input}`];
+  // A large screen reported as two segments (e.g. iPhone Duo open with the flag on) still gets tablet-size controls.
+  if (profile.device === 'dual' && profile.input === 'touch' && profile.shortSide >= 600) add.push('dev-tablet');
   if (profile.ios) add.push('os-ios');
   if (profile.dualH) add.push('dual-h');
   if (profile.dualV) add.push('dual-v');
@@ -124,7 +137,7 @@ const DEVICE_CSS = `
   html.dev-tablet .home-play-btn { font-size: 20px; padding: 18px; }
   html.dev-tablet .mini-btn { font-size: 14px; padding: 7px 12px; }
 
-  /* Two screens side by side (e.g. Surface Duo spanned): keep dialogs and the
+  /* Two viewport segments side by side (fold reported by the Viewport Segments API): keep dialogs and the
      centre panels on the right screen so nothing is cut by the hinge. */
   html.dual-h #hud-top-wrap { right: calc(100vw - var(--seg2-x) + 8px); }
   html.dual-h #home-screen, html.dual-h .modal-backdrop, html.dual-h #flow-menu-modal, html.dual-h #big-callout {
