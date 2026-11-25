@@ -18,8 +18,12 @@ import { ResultFXManager } from './ui/ResultFX.js';
 import { FishingTutorial } from './ui/FishingTutorial.js';
 import { GuideStore } from './ui/MiniGameCoach.js';
 import { installJapaneseLineBreak } from './ui/JaLineBreak.js';
+import { installDeviceProfile } from './ui/DeviceProfile.js';
 
-// Break Japanese text only between phrases everywhere in the game.
+// Tag <html> with the device type (phone / tablet / PC / dual screen) and input (touch / mouse).
+installDeviceProfile();
+// Break Japanese text only between phrases everywhere in the game
+// (and swap finger words for mouse words on PC).
 installJapaneseLineBreak();
 
 // =============================================================================

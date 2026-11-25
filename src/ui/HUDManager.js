@@ -1,3 +1,5 @@
+import { isMouseInput } from './DeviceProfile.js';
+
 export class HUDManager {
   constructor(rootContainer, callbacks = {}) {
     this.root = rootContainer;
@@ -894,6 +896,7 @@ export class HUDManager {
           <span class="joy-dir-lbl joy-dir-e">▶</span>
           <div id="joy-knob"></div>
         </div>
+        <div class="key-hint">WASDキーでも操作</div>
       </div>
 
       <!-- BOTTOM-RIGHT: Always-Visible Winch / Hookup / Crane Action Pad -->
@@ -903,10 +906,10 @@ export class HUDManager {
           <span id="action-depth-mini" style="color:#5ce1ff;">0 m</span>
         </div>
         <div class="winch-pair" id="winch-pair">
-          <button type="button" class="ctrl-btn" data-hold="reelIn" id="btn-reel-in" disabled>↑<br>巻上</button>
-          <button type="button" class="ctrl-btn" data-hold="reelOut" id="btn-reel-out" disabled>↓<br>繰出/投下</button>
+          <button type="button" class="ctrl-btn" data-hold="reelIn" id="btn-reel-in" disabled>↑<br>巻上<span class="key-hint">↑キー</span></button>
+          <button type="button" class="ctrl-btn" data-hold="reelOut" id="btn-reel-out" disabled>↓<br>繰出/投下<span class="key-hint">↓キー</span></button>
         </div>
-        <button type="button" class="ctrl-btn hook-btn" id="btn-hook" disabled>フッキング (Space)</button>
+        <button type="button" class="ctrl-btn hook-btn" id="btn-hook" disabled>フッキング</button>
         <button type="button" class="ctrl-btn crane-btn" id="btn-crane" disabled>クレーン (0/3)</button>
       </div>
 
@@ -1107,9 +1110,10 @@ export class HUDManager {
     });
 
     // 360° Circular Swipe Joystick Pointer Handling
-    const maxJoyRadius = 36;
     const updateJoyFromPointer = (clientX, clientY) => {
       const rect = this.elJoyBase.getBoundingClientRect();
+      // Scales with the stick size (larger on tablets).
+      const maxJoyRadius = rect.width * 0.32;
       const cx = rect.left + rect.width * 0.5;
       const cy = rect.top + rect.height * 0.5;
       let dx = clientX - cx;
@@ -1518,10 +1522,10 @@ export class HUDManager {
     }
 
     if (snap.phase === 'LURE_HOOK' && snap.squid.lureStage === 'WRAP') {
-      this.elBtnHook.textContent = `今すぐフッキング! (${snap.squid.wrapWindowLeft.toFixed(1)}s)`;
+      this.elBtnHook.textContent = `今すぐフッキング! (${snap.squid.wrapWindowLeft.toFixed(1)}s)${isMouseInput() ? ' [スペース]' : ''}`;
       this.elBtnHook.classList.add('glow-red');
     } else {
-      this.elBtnHook.textContent = 'フッキング (Space)';
+      this.elBtnHook.textContent = isMouseInput() ? 'フッキング [スペース]' : 'フッキング';
     }
 
     if (snap.phase === 'FIGHT') {
