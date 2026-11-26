@@ -55,10 +55,13 @@ export const FAILURE_DETAILS = {
   },
   LANDING_FAIL: {
     title: 'ランディング失敗（LANDING FAIL）',
-    reason: '波による激しい横揺れ（ロール18度以上）またはイカの抵抗中に強行吊り上げを行い、取り逃がしました。',
+    reason: 'クレーン操作を3回失敗し、ダイオウイカを取り逃がしました（失敗できるのは2回まで）。',
     advice: 'ロール18°未満・イカ静止・波頂点OKの3条件が揃ってクレーンボタンが光った瞬間に押してください。'
   }
 };
+
+// How many mistimed crane presses are forgiven during LANDING.
+export const LANDING_MAX_MISSES = 2;
 
 export class GameEngine {
   constructor() {
@@ -158,7 +161,10 @@ export class GameEngine {
       craneNormalized: 0,
       waveCrestReady: false,
       waveSin: 0,
-      cooldown: 0
+      cooldown: 0,
+      // Crane presses that missed the timing. Two are forgiven; the third loses the squid.
+      misses: 0,
+      maxMisses: LANDING_MAX_MISSES
     };
 
     this.captureTimer = 0;
@@ -170,6 +176,7 @@ export class GameEngine {
       alarmType: '',
       colossalAlert: 0,
       colossalAction: null,
+      craneResult: null,
       statusMessage: t('深海調査船 出港待機中')
     };
 
@@ -605,16 +612,29 @@ export class GameEngine {
 
     if (controls.craneAction && l.cooldown <= 0) {
       l.cooldown = 0.65;
-      if (absRoll >= 18 || s.surfaceResisting) {
-        this._fail('LANDING_FAIL');
-        return;
-      }
-      if (!l.waveCrestReady) {
-        this.events.statusMessage = t('波の谷間です！波ゲージが緑色の「波頂点OK」に入った瞬間に押してください。');
+      // Every press is judged: all 3 conditions met = success, otherwise a miss.
+      const missReason = absRoll >= 18 ? 'roll' : s.surfaceResisting ? 'squid' : !l.waveCrestReady ? 'wave' : null;
+      if (missReason) {
+        l.misses += 1;
+        const left = Math.max(0, l.maxMisses - l.misses);
+        const final = l.misses > l.maxMisses;
+        this.events.craneResult = { ok: false, reason: missReason, misses: l.misses, left, final, stage: l.stage };
+        if (final) {
+          this._fail('LANDING_FAIL');
+          return;
+        }
+        const messages = {
+          roll: 'クレーン失敗！横揺れが大きすぎます。',
+          squid: 'クレーン失敗！イカが抵抗中です。',
+          wave: 'クレーン失敗！波の谷です。'
+        };
+        const chances = left > 0 ? t('あと{0}回まで失敗できます', left) : t('もう失敗できません！');
+        this.events.statusMessage = `${t(messages[missReason])} ${chances}`;
         return;
       }
 
       l.stage += 1;
+      this.events.craneResult = { ok: true, stage: l.stage, misses: l.misses, left: Math.max(0, l.maxMisses - l.misses), final: false };
       if (l.stage === 1) {
         l.craneNormalized = 0.95;
         this.events.statusMessage = t('第1段階完了（スリング確保）！次の波頂点でクレーン巻上！');
@@ -643,6 +663,7 @@ export class GameEngine {
     this.events.lineSnap = false;
     this.events.colossalAlert = 0;
     this.events.colossalAction = null;
+    this.events.craneResult = null;
     this.events.alarmActive = false;
     this.events.alarmType = '';
 

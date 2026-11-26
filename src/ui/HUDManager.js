@@ -646,6 +646,25 @@ export class HUDManager {
         z-index: 32;
         border-color: rgba(245, 179, 66, 0.55);
       }
+      .crane-miss-lbl { margin-left: 6px; color: #a6ffd0; }
+      .crane-miss-lbl.warn { color: #ffd166; }
+      .crane-miss-lbl.danger { color: #ff7a7a; }
+      #crane-timing-panel.crane-hit { animation: craneHit 0.55s ease-out; }
+      #crane-timing-panel.crane-miss { animation: craneMiss 0.5s ease-out; }
+      @keyframes craneHit {
+        0% { box-shadow: 0 0 0 3px #3de08a, 0 0 34px rgba(61, 224, 138, 0.9); }
+        100% { box-shadow: none; }
+      }
+      @keyframes craneMiss {
+        0%, 100% { transform: translateX(-50%); }
+        20% { transform: translateX(calc(-50% - 8px)); box-shadow: 0 0 0 3px #ff5f5f, 0 0 30px rgba(255, 80, 80, 0.85); }
+        40% { transform: translateX(calc(-50% + 7px)); }
+        60% { transform: translateX(calc(-50% - 5px)); }
+        80% { transform: translateX(calc(-50% + 3px)); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #crane-timing-panel.crane-miss { animation: none; box-shadow: 0 0 0 3px #ff5f5f; }
+      }
       .crane-cond-row {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -1016,7 +1035,7 @@ export class HUDManager {
       <div id="crane-timing-panel" class="hud-panel hidden">
         <div class="panel-hdr">
           <span>A-FRAME CRANE // 揚収タイミング</span>
-          <span id="crane-stage-lbl" style="color:#5ce1ff;">STEP 0 / 3</span>
+          <span><span id="crane-stage-lbl" style="color:#5ce1ff;">STEP 0 / 3</span> <span id="crane-miss-lbl" class="crane-miss-lbl">ミス 0/2</span></span>
         </div>
         <div class="crane-cond-row">
           <div class="cond-pill" id="cond-roll">ロール NG</div>
@@ -1103,6 +1122,7 @@ export class HUDManager {
 
     this.elCraneTimingPanel = document.getElementById('crane-timing-panel');
     this.elCraneStageLbl = document.getElementById('crane-stage-lbl');
+    this.elCraneMissLbl = document.getElementById('crane-miss-lbl');
     this.elCondRoll = document.getElementById('cond-roll');
     this.elCondSquid = document.getElementById('cond-squid');
     this.elCondWave = document.getElementById('cond-wave');
@@ -1618,6 +1638,18 @@ export class HUDManager {
     if (snap.phase === 'CAPTURE_SCENE' && this.lastPhase !== 'CAPTURE_SCENE') {
       this._showCallout('CAPTURE SUCCESS!!', 'ダイオウイカ揚収成功！', 3.4, true);
     }
+    // Crane press feedback (sound is played in main.js): success / miss with chances left.
+    const crane = snap.events.craneResult;
+    if (crane) {
+      this.elCraneTimingPanel.classList.remove('crane-hit', 'crane-miss');
+      void this.elCraneTimingPanel.offsetWidth; // restart the animation
+      this.elCraneTimingPanel.classList.add(crane.ok ? 'crane-hit' : 'crane-miss');
+      if (crane.ok && crane.stage < 3) {
+        this._showCallout('クレーン成功!!', t('{0} / 3 段階クリア', crane.stage), 1.4, true);
+      } else if (!crane.ok && !crane.final) {
+        this._showCallout('クレーン失敗…', crane.left > 0 ? t('あと{0}回まで失敗できます', crane.left) : 'もう失敗できません！', 1.6, false);
+      }
+    }
 
     this.lastPhase = snap.phase;
     this.lastLureStage = snap.squid.lureStage;
@@ -1753,6 +1785,10 @@ export class HUDManager {
       const stepName = t(stageNames[Math.min(2, snap.landing.stage)]);
 
       this.elCraneStageLbl.textContent = t('STEP {0} / 3', snap.landing.stage);
+      const misses = snap.landing.misses || 0;
+      this.elCraneMissLbl.textContent = t('ミス {0}/{1}', misses, snap.landing.maxMisses ?? 2);
+      this.elCraneMissLbl.classList.toggle('warn', misses === 1);
+      this.elCraneMissLbl.classList.toggle('danger', misses >= 2);
       this.elCondRoll.textContent = rollOK ? t('ロール OK') : t('横揺れ危険!');
       this.elCondRoll.classList.toggle('ok', rollOK);
       this.elCondSquid.textContent = squidOK ? t('イカ静止 OK') : t('抵抗中! 待て');
