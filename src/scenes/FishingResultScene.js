@@ -34,7 +34,8 @@ function buildScalePreset50(lengthMeters) {
 export class FishingResultScene {
   constructor() {
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x061324);
+    // Same colour as the ruler board, so the board edge does not show on wide screens.
+    this.scene.background = new THREE.Color(0x07172b);
 
     // far = 420 so a 50m squid and its 60m ruler always stay inside the view.
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 420);
@@ -54,6 +55,7 @@ export class FishingResultScene {
     );
     floor.rotation.x = -Math.PI * 0.5;
     this.scene.add(floor);
+    this.floor = floor;
 
     this.fisherman = new FishermanModel();
     this.scene.add(this.fisherman.getObject3D());
@@ -65,7 +67,9 @@ export class FishingResultScene {
     this.colossal = null; // { model, motion } for 31m-50m
     this.preset = buildScalePreset50(8);
     this.safeTopPx = 0;
+    this.safeBottomPx = 0;
     this.safeCheckTimer = 0;
+    this.contentHalfWidth = 3;
   }
 
   _makeCrispBadgeSprite(text, fgColor = '#a8dcff', borderColor = 'rgba(92,225,255,0.45)', bgColor = 'rgba(6,18,34,0.82)', worldHeight = 0.24) {
@@ -216,6 +220,14 @@ export class FishingResultScene {
     fObj.position.set(this.preset.fishermanX, 0, 0.25);
 
     this._buildScaleWall(this.preset.maxScaleMeters, this.preset.step);
+    this.safeCheckTimer = 0; // re-measure the score card and buttons for the new result
+
+    // Half width (from x = 0) that must stay on screen: the squid, the fisherman and all labels.
+    let half = Math.abs(this.preset.fishermanX) + 0.5;
+    for (const sp of this.labelSprites.children) half = Math.max(half, Math.abs(sp.position.x) + sp.scale.x * 0.5);
+    const box = new THREE.Box3().setFromObject(this.colossal ? this.colossal.model.getObject3D() : this.squid.getObject3D());
+    half = Math.max(half, Math.abs(box.min.x), Math.abs(box.max.x));
+    this.contentHalfWidth = half * 1.06;
   }
 
   render(renderer, width, height, dt) {
@@ -233,32 +245,50 @@ export class FishingResultScene {
     this.camera.aspect = aspect;
     this.camera.updateProjectionMatrix();
 
-    // Frame inside central safe zone (leaving top 22% for compact score card & bottom 14% for footer buttons)
-    const fovRad = (this.camera.fov * Math.PI) / 180;
-    const totalH = this.preset.maxScaleMeters;
-    const fitH = totalH * 1.48;
-    let camDist = (fitH * 0.5) / Math.tan(fovRad * 0.5);
-    if (aspect < 0.75) camDist *= 1.18;
-
-    // Shift lookAt slightly upward so the 0m..maxM stage sits nicely below the top-left score card
-    const centerY = totalH * 0.56;
-
-    // Safety margin from the real score-card size: keep the squid's top (Y = L, plus a
-    // small gap) below the card, and the floor (Y = 0) above the footer buttons.
+    // Fit the 0 m floor .. squid top into the free band between the score card (top)
+    // and the footer buttons (bottom), measured from the real page layout.
+    // Measured every frame from the card's parent row: the card itself plays a scale-in
+    // animation, and its animated size would make the camera wobble.
     this.safeCheckTimer -= dt;
     if (this.safeCheckTimer <= 0) {
-      this.safeCheckTimer = 0.5;
+      this.safeCheckTimer = 0;
       const card = document.getElementById('fr-card');
-      const rect = card && card.offsetParent !== null ? card.getBoundingClientRect() : null;
-      this.safeTopPx = rect ? rect.bottom + 10 : 0;
+      const cardRect = card && card.offsetParent !== null ? card.parentElement.getBoundingClientRect() : null;
+      this.safeTopPx = cardRect ? cardRect.bottom + 12 : height * 0.22;
+      const footer = document.querySelector('#fishing-result-ui .fr-footer');
+      const footRect = footer && footer.offsetParent !== null ? footer.getBoundingClientRect() : null;
+      this.safeBottomPx = footRect ? footRect.top - 14 : height * 0.86;
     }
+    const fovRad = (this.camera.fov * Math.PI) / 180;
     const tanHalf = Math.tan(fovRad * 0.5);
-    const topFrac = Math.min(0.42, Math.max(0.22, this.safeTopPx / Math.max(1, height)));
-    const squidTop = this.preset.lengthMeters * 1.04;
-    if (squidTop > centerY) camDist = Math.max(camDist, (squidTop - centerY) / ((0.5 - topFrac) * 2 * tanHalf));
-    camDist = Math.max(camDist, centerY / (0.36 * 2 * tanHalf));
+    const topFrac = Math.min(0.6, Math.max(0.04, this.safeTopPx / Math.max(1, height)));
+    const bottomFrac = Math.min(0.97, Math.max(topFrac + 0.22, this.safeBottomPx / Math.max(1, height)));
+
+    // Content height: squid top (or the fisherman badge on tiny sizes) plus a small gap.
+    const contentTop = Math.max(this.preset.lengthMeters * 1.04, 2.2) + this.preset.maxScaleMeters * 0.02;
+    // Distance so the content height fills the band, or wider if the content is too wide.
+    const distForHeight = contentTop / (2 * tanHalf * (bottomFrac - topFrac));
+    const distForWidth = this.contentHalfWidth / (tanHalf * aspect);
+    const camDist = Math.max(distForHeight, distForWidth);
+    // Place the middle of the content at the middle of the band.
+    const bandMid = (topFrac + bottomFrac) * 0.5;
+    const centerY = contentTop * 0.5 + (bandMid - 0.5) * 2 * camDist * tanHalf;
     this.camera.position.set(0, centerY, camDist);
     this.camera.lookAt(0, centerY, 0);
+
+    // Stretch the ruler board and the floor to the screen edges (lines are horizontal,
+    // so stretching the board sideways keeps every tick at the right height).
+    if (this.scaleWall) {
+      const wallW = this.scaleWall.geometry.parameters.width;
+      const visibleW = 2 * (camDist + 1.8) * tanHalf * aspect;
+      this.scaleWall.scale.x = Math.max(1, (visibleW * 1.04) / wallW);
+    }
+    const visibleFloorW = 2 * (camDist + 20) * tanHalf * aspect;
+    this.floor.scale.set(Math.max(1, visibleFloorW / 100), Math.max(1, (camDist + 10) / 20), 1);
+    if (this.camera.far < camDist + 60) {
+      this.camera.far = camDist + 60;
+      this.camera.updateProjectionMatrix();
+    }
 
     renderer.setScissorTest(false);
     renderer.setViewport(0, 0, width, height);
