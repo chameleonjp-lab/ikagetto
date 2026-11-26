@@ -139,6 +139,30 @@ class MaritimeAudio {
     setTimeout(() => this.playTone(659, 0.35, 'triangle', 0.36), 280);
   }
 
+  // Crane press judged OK: mechanical clunk + bright rising chime (higher on each step).
+  playCraneSuccess(stage = 1) {
+    const lift = [1, 1.122, 1.26][Math.max(0, Math.min(2, stage - 1))];
+    this.playTone(110, 0.12, 'square', 0.22);
+    this.playTone(660 * lift, 0.12, 'triangle', 0.34);
+    setTimeout(() => this.playTone(990 * lift, 0.26, 'triangle', 0.34), 90);
+    setTimeout(() => this.playTone(1320 * lift, 0.22, 'sine', 0.18), 180);
+  }
+
+  // Crane press missed the timing: low double buzzer ("bu-bu").
+  playCraneMiss() {
+    this.playTone(190, 0.16, 'square', 0.28);
+    setTimeout(() => this.playTone(150, 0.26, 'square', 0.28), 190);
+  }
+
+  // Third miss: buzzer, then a sinking tone as the squid slips away.
+  playCraneFail() {
+    this.playCraneMiss();
+    setTimeout(() => {
+      this.playTone(300, 0.9, 'sawtooth', 0.22);
+      this.playTone(150, 0.9, 'triangle', 0.26);
+    }, 480);
+  }
+
   playLineSnap() {
     this.playTone(160, 0.38, 'sawtooth', 0.45);
     this.playTone(880, 0.12, 'square', 0.25);
@@ -176,6 +200,12 @@ class MaritimeAudio {
 
     if (snap.events.hookSuccess) this.playHookSuccess();
     if (snap.events.lineSnap) this.playLineSnap();
+    const crane = snap.events.craneResult;
+    if (crane) {
+      if (crane.ok) this.playCraneSuccess(crane.stage);
+      else if (crane.final) this.playCraneFail();
+      else this.playCraneMiss();
+    }
   }
 }
 

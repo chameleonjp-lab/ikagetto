@@ -87,3 +87,47 @@ test('the shared cutting and cooking judge distinguishes clean, reversed, short 
   assert.equal(circleDeviation([{ x: 0, y: 50 }, { x: -50, y: 0 }], start, 50), 0);
   assert.ok(scoreRatio(1) > scoreRatio(0));
 });
+
+test('the crane forgives two mistimed presses and loses the squid on the third', (t) => {
+  t.mock.method(Math, 'random', seededRandom(7711));
+  const trough = { phase: -Math.PI / 2, roll: 0, pitch: 0 };
+  const crest = { phase: Math.PI / 2, roll: 0, pitch: 0 };
+  const toLanding = () => {
+    const engine = new GameEngine();
+    engine.startGame({ forceLength: 10 });
+    Object.assign(engine, { phase: 'LANDING', depth: 0 });
+    Object.assign(engine.squid, { surfaceResisting: false, surfaceResistTimer: 99 });
+    return engine;
+  };
+  const press = (engine, wave) => {
+    engine.landing.cooldown = 0;
+    return engine.update(0.05, { craneAction: true }, wave);
+  };
+
+  // Two misses are forgiven, and a good press still counts after them.
+  let engine = toLanding();
+  let snapshot = press(engine, trough);
+  assert.deepEqual(
+    { ...snapshot.events.craneResult },
+    { ok: false, reason: 'wave', misses: 1, left: 1, final: false, stage: 0 },
+  );
+  snapshot = press(engine, trough);
+  assert.equal(snapshot.phase, 'LANDING');
+  assert.equal(snapshot.events.craneResult.left, 0);
+  snapshot = press(engine, crest);
+  assert.equal(snapshot.events.craneResult.ok, true);
+  assert.equal(snapshot.landing.stage, 1);
+
+  // The third miss ends the landing.
+  snapshot = press(engine, trough);
+  assert.equal(snapshot.events.craneResult.final, true);
+  assert.equal(snapshot.phase, 'GAMEOVER');
+  assert.equal(snapshot.failureCode, 'LANDING_FAIL');
+
+  // A struggling squid is a miss too, not an instant loss.
+  engine = toLanding();
+  engine.squid.surfaceResisting = true;
+  snapshot = press(engine, crest);
+  assert.equal(snapshot.phase, 'LANDING');
+  assert.equal(snapshot.events.craneResult.reason, 'squid');
+});
