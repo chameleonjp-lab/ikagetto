@@ -1,0 +1,14 @@
+{
+  "name": "ikagetto-ci",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "playwright-core": "1.62.1",
+    "three": "0.169.0",
+    "twitter-text": "3.1.0"
+  }
+}
