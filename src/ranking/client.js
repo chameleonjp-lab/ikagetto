@@ -6,6 +6,7 @@ const modes = new Set(['fishing', 'butcher', 'cooking']);
 const queue = new Map();
 const sending = new Map();
 const runResults = new WeakMap();
+const finishObservations = new WeakMap();
 
 // Test mode: ?mockRanking=1 keeps every ranking call in memory (nothing is sent or
 // queued), so local checks never write to the real leaderboard.
@@ -267,7 +268,18 @@ function sync(key) {
   };
 
   const promise = operation().then(result => {
-    if (job.operation === 'finish' && result) remove(key);
+    if (job.operation === 'finish' && result) {
+      remove(key);
+      const state = runResults.get(job.run);
+      if (state) {
+        state.finished = result;
+        const listeners = [...state.listeners];
+        state.listeners.clear();
+        for (const listener of listeners) {
+          try { listener(result); } catch { /* UI handlers cannot affect the saved result. */ }
+        }
+      }
+    }
     return result;
   }).finally(() => sending.delete(key));
   sending.set(key, promise);
@@ -308,13 +320,23 @@ export function finishRankingRun(run, score, catchResult) {
   if (existing && existing.score !== score) return Promise.resolve(null);
   if (existing?.finished) return Promise.resolve(existing.finished);
 
-  const state = existing || { score, metrics, finished: null };
+  const state = existing || { score, metrics, finished: null, listeners: new Set() };
   runResults.set(run, state);
   const key = remember({ operation: 'finish', run, score, metrics: state.metrics });
-  return sync(key).then(result => {
-    if (result) state.finished = result;
-    return result;
-  });
+  const pending = sync(key);
+  finishObservations.set(pending, state);
+  return pending;
+}
+
+export function watchRankingFinish(pending, listener) {
+  const state = finishObservations.get(pending);
+  if (!state) return () => {};
+  if (state.finished) {
+    listener(state.finished);
+    return () => {};
+  }
+  state.listeners.add(listener);
+  return () => state.listeners.delete(listener);
 }
 
 if (typeof window !== 'undefined') {

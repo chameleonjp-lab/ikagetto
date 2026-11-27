@@ -1,5 +1,6 @@
 import { ResultFXManager } from './ResultFX.js';
 import { formatNumber, localizeHtml, t } from '../i18n/runtime.js';
+import { watchRankingFinish } from '../ranking/client.js';
 import { rankText } from '../ranking/messages.js';
 import { formatPosition, getRankingHref, shareOnX } from '../ranking/share.js';
 
@@ -16,14 +17,17 @@ export class ResultRanking {
   }
 
   show(result, statistics, playerName) {
+    this.stopWatchingFinish?.();
     const current = { ...result };
     this.result = current;
     this.position.textContent = rankText('resultPending');
     this.count.textContent = '';
     this.shareButton.disabled = true;
 
+    let confirmed = false;
     const update = (stats) => {
-      if (this.result !== current) return;
+      if (this.result !== current || confirmed) return;
+      if (stats) confirmed = true;
       current.rankPosition = stats?.rank;
       current.playCount = stats?.play_count;
       if (Number.isSafeInteger(current.rankPosition) && Number.isSafeInteger(current.playCount)) {
@@ -37,10 +41,13 @@ export class ResultRanking {
       }
       this.shareButton.disabled = false;
     };
+    this.stopWatchingFinish = watchRankingFinish(statistics, update);
     Promise.resolve(statistics).then(update, () => update(null));
   }
 
   clear() {
+    this.stopWatchingFinish?.();
+    this.stopWatchingFinish = null;
     this.result = null;
   }
 }
