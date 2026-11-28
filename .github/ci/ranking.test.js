@@ -21,6 +21,8 @@ test('ranking migrations preserve previous records and accept both 80,000-point 
       'ikagetto-colossal-metrics-v4.sql',
       'verify-ikagetto-colossal-metrics-v4.sql',
       'verify-ikagetto-board-pagination-v3.sql',
+      'ikagetto-hall-of-fame-v1.sql',
+      'verify-ikagetto-hall-of-fame-v1.sql',
     ];
     for (const file of files) {
       const sql = await readFile(new URL(`../../supabase/${file}`, import.meta.url), 'utf8');

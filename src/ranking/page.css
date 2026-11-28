@@ -44,6 +44,21 @@ dd { margin: 5px 0 0; font-size: 1.4rem; font-weight: 700; font-variant-numeric:
   overflow-wrap: anywhere;
 }
 [role=tab][aria-selected=true] { background: #91e5fa; color: #07121e; border-color: #91e5fa; font-weight: 750; }
+.hall-link {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #be9a58;
+  border-radius: 8px;
+  background: #1d202a;
+  color: #ffe4a5;
+  font-weight: 750;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.hall-link:hover { background: #33303a; }
 :focus-visible { outline: 2px solid #ffd176; outline-offset: 2px; }
 #ranking-panel { min-height: 140px; scroll-margin-block-start: 12px; }
 .status { color: #b8cee0; padding: 12px 0; }
