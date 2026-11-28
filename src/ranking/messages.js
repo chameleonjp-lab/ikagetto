@@ -10,7 +10,7 @@ const keys = [
   'rank', 'player', 'score', 'returnGame', 'empty', 'loadError', 'retry',
   'scoreValue', 'homeShare', 'fishingMetrics', 'position', 'guestPosition', 'comment', 'modeScore',
   'rankingDetails', 'pagination', 'previousPage', 'nextPage', 'pageNumber', 'emptyPage', 'statsLoadError',
-  'colossalCatch',
+  'colossalCatch', 'hallOfFame',
 ];
 
 const translations = {
@@ -25,6 +25,7 @@ const translations = {
     '{rank}位 / {count}人', '順位なし / {count}人', '「{comment}」', '{mode}スコア {score}',
     'ランキング詳細', 'ページ切り替え', '前へ', '次へ', '{page}ページ目', 'このページにスコアはありません。', 'プレイ回数と漁師登録を読み込めませんでした。',
     '【{class}】{length} m・{weight} kg・{time}秒',
+    '殿堂入り',
   ],
   en: [
     'Language', 'Leaderboard name (optional)', 'Enter a name to join the leaderboard.', 'Enter a displayable name of 20 characters or fewer.',
@@ -37,6 +38,7 @@ const translations = {
     '{rank} / {count} players', 'Unranked / {count} players', '“{comment}”', '{mode} score: {score}',
     'Leaderboard details', 'Leaderboard pages', 'Previous', 'Next', 'Page {page}', 'There are no scores on this page.', 'Could not load play and registration counts.',
     '{class} · {length} m · {weight} kg · {time}s',
+    'Hall of Fame',
   ],
   es: [
     'Idioma', 'Nombre para la clasificación (opcional)', 'Escribe un nombre para entrar en la clasificación.', 'Introduce un nombre visible de hasta 20 caracteres.',
@@ -49,6 +51,7 @@ const translations = {
     '{rank} / {count} jugadores', 'Sin puesto / {count} jugadores', '«{comment}»', '{mode}: {score}',
     'Detalles de la clasificación', 'Páginas de la clasificación', 'Anterior', 'Siguiente', 'Página {page}', 'No hay puntuaciones en esta página.', 'No se pudieron cargar los totales de partidas y registros.',
     '{class} · {length} m · {weight} kg · {time} s',
+    'Salón de la fama',
   ],
   'pt-BR': [
     'Idioma', 'Nome no ranking (opcional)', 'Digite um nome para participar do ranking.', 'Digite um nome que possa ser exibido, com até 20 caracteres.',
@@ -61,6 +64,7 @@ const translations = {
     '{rank} / {count} jogadores', 'Sem posição / {count} jogadores', '“{comment}”', '{mode}: {score}',
     'Detalhes do ranking', 'Páginas do ranking', 'Anterior', 'Próxima', 'Página {page}', 'Não há pontuações nesta página.', 'Não foi possível carregar os totais de partidas e cadastros.',
     '{class} · {length} m · {weight} kg · {time} s',
+    'Hall da Fama',
   ],
   'zh-Hans': [
     '语言', '排行榜昵称（选填）', '填写昵称即可参加排行。', '请输入不超过20个字符、可以正常显示的昵称。',
@@ -73,6 +77,7 @@ const translations = {
     '第 {rank} 名 / {count} 人', '未上榜 / {count} 人', '「{comment}」', '{mode}分数：{score}',
     '排行榜详情', '排行榜分页', '上一页', '下一页', '第 {page} 页', '此页没有分数。', '无法加载游玩次数和登记人数。',
     '【{class}】{length}米 · {weight}千克 · {time}秒',
+    '名人堂',
   ],
   fr: [
     'Langue', 'Nom au classement (facultatif)', 'Saisissez un nom pour participer au classement.', 'Saisissez un nom affichable de 20 caractères maximum.',
@@ -85,6 +90,7 @@ const translations = {
     '{rank} / {count} joueurs', 'Non classé / {count} joueurs', '« {comment} »', '{mode} : {score}',
     'Détails du classement', 'Pages du classement', 'Précédente', 'Suivante', 'Page {page}', 'Aucun score sur cette page.', 'Impossible de charger le nombre de parties et d’inscriptions.',
     '{class} · {length} m · {weight} kg · {time} s',
+    'Panthéon',
   ],
   de: [
     'Sprache', 'Ranglistenname (optional)', 'Gib einen Namen ein, um an der Rangliste teilzunehmen.', 'Gib einen lesbaren Namen mit höchstens 20 Zeichen ein.',
@@ -97,6 +103,7 @@ const translations = {
     '{rank} / {count} Spieler', 'Ohne Platz / {count} Spieler', '„{comment}“', '{mode}: {score}',
     'Ranglistendetails', 'Ranglistenseiten', 'Zurück', 'Weiter', 'Seite {page}', 'Auf dieser Seite gibt es keine Punkte.', 'Die Anzahl der Spiele und Anmeldungen konnte nicht geladen werden.',
     '{class} · {length} m · {weight} kg · {time} s',
+    'Ruhmeshalle',
   ],
   ko: [
     '언어', '순위표 이름(선택)', '이름을 입력하면 순위표에 참가할 수 있습니다.', '표시할 수 있는 문자로 20자 이내의 이름을 입력하세요.',
@@ -109,6 +116,7 @@ const translations = {
     '{rank}위 / {count}명', '순위 없음 / {count}명', '“{comment}”', '{mode} 점수 {score}',
     '순위표 상세 보기', '순위표 페이지', '이전', '다음', '{page}페이지', '이 페이지에는 점수가 없습니다.', '플레이 횟수와 등록 어부 수를 불러올 수 없습니다.',
     '[{class}] {length} m · {weight} kg · {time}초',
+    '명예의 전당',
   ],
   ru: [
     'Язык', 'Имя для таблицы (необязательно)', 'Введите имя, чтобы попасть в таблицу лидеров.', 'Введите читаемое имя длиной не более 20 символов.',
@@ -121,6 +129,7 @@ const translations = {
     '{rank} / {count} игроков', 'Без места / {count} игроков', '«{comment}»', '{mode}: {score}',
     'Подробнее о рейтинге', 'Страницы рейтинга', 'Назад', 'Далее', 'Страница {page}', 'На этой странице нет результатов.', 'Не удалось загрузить число игр и регистраций.',
     '{class} · {length} м · {weight} кг · {time} с',
+    'Зал славы',
   ],
   it: [
     'Lingua', 'Nome in classifica (facoltativo)', 'Inserisci un nome per partecipare alla classifica.', 'Inserisci un nome visualizzabile di massimo 20 caratteri.',
@@ -133,6 +142,7 @@ const translations = {
     '{rank} / {count} giocatori', 'Non classificato / {count} giocatori', '«{comment}»', '{mode}: {score}',
     'Dettagli della classifica', 'Pagine della classifica', 'Indietro', 'Avanti', 'Pagina {page}', 'In questa pagina non ci sono punteggi.', 'Impossibile caricare il numero di partite e iscrizioni.',
     '{class} · {length} m · {weight} kg · {time} s',
+    'Hall of Fame',
   ],
   'zh-Hant': [
     '語言', '排行榜暱稱（選填）', '輸入暱稱即可參加排名。', '請輸入不超過20字、可正常顯示的暱稱。',
@@ -145,6 +155,7 @@ const translations = {
     '第 {rank} 名 / {count} 人', '未上榜 / {count} 人', '「{comment}」', '{mode}分數：{score}',
     '排行榜詳細資訊', '排行榜分頁', '上一頁', '下一頁', '第 {page} 頁', '此頁沒有分數。', '無法載入遊玩次數和登記人數。',
     '【{class}】{length}公尺 · {weight}公斤 · {time}秒',
+    '名人堂',
   ],
   id: [
     'Bahasa', 'Nama di papan peringkat (opsional)', 'Masukkan nama untuk ikut dalam papan peringkat.', 'Masukkan nama yang bisa ditampilkan, maksimal 20 karakter.',
@@ -157,6 +168,7 @@ const translations = {
     '{rank} / {count} pemain', 'Tanpa peringkat / {count} pemain', '“{comment}”', 'Skor {mode}: {score}',
     'Detail papan peringkat', 'Halaman papan peringkat', 'Sebelumnya', 'Berikutnya', 'Halaman {page}', 'Tidak ada skor di halaman ini.', 'Jumlah permainan dan pendaftaran tidak dapat dimuat.',
     '{class} · {length} m · {weight} kg · {time} dtk',
+    'Aula Kehormatan',
   ],
   tr: [
     'Dil', 'Sıralama adı (isteğe bağlı)', 'Sıralamaya katılmak için bir ad gir.', 'Görüntülenebilen, en fazla 20 karakterlik bir ad gir.',
@@ -169,6 +181,7 @@ const translations = {
     '{rank} / {count} oyuncu', 'Sırasız / {count} oyuncu', '“{comment}”', '{mode} puanı: {score}',
     'Sıralama ayrıntıları', 'Sıralama sayfaları', 'Önceki', 'Sonraki', 'Sayfa {page}', 'Bu sayfada puan yok.', 'Oyun ve kayıt sayıları yüklenemedi.',
     '{class} · {length} m · {weight} kg · {time} sn',
+    'Onur Listesi',
   ],
   vi: [
     'Ngôn ngữ', 'Tên trên bảng xếp hạng (không bắt buộc)', 'Nhập tên để tham gia bảng xếp hạng.', 'Nhập tên có thể hiển thị, tối đa 20 ký tự.',
@@ -181,6 +194,7 @@ const translations = {
     '{rank} / {count} người chơi', 'Chưa xếp hạng / {count} người chơi', '“{comment}”', 'Điểm {mode}: {score}',
     'Chi tiết bảng xếp hạng', 'Các trang xếp hạng', 'Trang trước', 'Trang sau', 'Trang {page}', 'Trang này không có điểm số.', 'Không tải được số lượt chơi và số người đăng ký.',
     '{class} · {length} m · {weight} kg · {time} giây',
+    'Đại sảnh Danh vọng',
   ],
   th: [
     'ภาษา', 'ชื่อในตารางอันดับ (ไม่บังคับ)', 'กรอกชื่อเพื่อเข้าร่วมตารางอันดับ', 'กรอกชื่อที่แสดงได้ ความยาวไม่เกิน 20 ตัวอักษร',
@@ -193,6 +207,7 @@ const translations = {
     '{rank} / {count} คน', 'ไม่มีอันดับ / {count} คน', '“{comment}”', 'คะแนน{mode} {score}',
     'รายละเอียดตารางอันดับ', 'หน้าตารางอันดับ', 'ก่อนหน้า', 'ถัดไป', 'หน้า {page}', 'หน้านี้ไม่มีคะแนน', 'ไม่สามารถโหลดจำนวนรอบเล่นและผู้ลงทะเบียนได้',
     '{class} · {length} ม. · {weight} กก. · {time} วิ.',
+    'หอเกียรติยศ',
   ],
 };
 

@@ -125,6 +125,11 @@ test('short mobile play, result and paginated ranking load offline', { timeout: 
       { p_mode: 'fishing', p_limit: 100, p_offset: 100 },
     ]);
     assert.equal(new URL(await page.locator('#ranking-details').getAttribute('href')).searchParams.get('game'), 'ikagetto');
+    const hall = page.getByRole('link', { name: 'Hall of Fame' });
+    assert.equal(await hall.getAttribute('href'),
+      'https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html?game=ikagetto&lang=en&mode=hall');
+    await page.locator('#language').selectOption('ja');
+    assert.equal(new URL(await page.getByRole('link', { name: '殿堂入り' }).getAttribute('href')).searchParams.get('lang'), 'ja');
     assert.deepEqual(unexpectedApi, [], 'mock play must not reach Supabase');
     assert.deepEqual(errors, []);
   } finally {

@@ -1,6 +1,6 @@
 import { getLanguage, setLanguage, onLanguageChange } from '../i18n/runtime.js';
 import { SUPPORTED_LANGUAGES } from '../i18n/languages.js';
-import { rankText, rankNumber } from './messages.js?v=3';
+import { rankText, rankNumber } from './messages.js?v=4';
 import { getRankingBoardPage, getRankingStats } from './client.js?v=4';
 
 const $ = id => document.getElementById(id);
@@ -34,7 +34,7 @@ function render() {
     'board-title': 'ranking', 'go-home': 'returnGame',
     'fishing-label': 'fishingCount', 'registered-label': 'fisherCount',
     'rank-label': 'rank', 'name-label': 'player', 'score-label': 'score',
-    'ranking-details': 'rankingDetails', retry: 'retry',
+    'ranking-details': 'rankingDetails', 'hall-of-fame': 'hallOfFame', retry: 'retry',
   };
   for (const [id, key] of Object.entries(labels)) $(id).textContent = rankText(key);
   document.title = `イカゲット – ${rankText('ranking')}`;
@@ -42,6 +42,8 @@ function render() {
   const detailUrl = new URL('https://chameleonjp-lab.github.io/chameleonjp_lab/ranking.html');
   detailUrl.search = new URLSearchParams({ game: 'ikagetto', lang: getLanguage(), mode });
   $('ranking-details').href = detailUrl;
+  detailUrl.searchParams.set('mode', 'hall');
+  $('hall-of-fame').href = detailUrl;
   $('mode-tabs').setAttribute('aria-label', rankText('ranking'));
 
   for (const tab of tabs) {
